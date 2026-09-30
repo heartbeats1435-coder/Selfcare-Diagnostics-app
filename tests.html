@@ -1,0 +1,436 @@
+<!-- file: tests.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+  <title>Tests Catalogue - Selfcare Diagnostics</title>
+  
+  <!-- Favicon & Manifest -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#078866">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  <!-- Versioned Stylesheets -->
+  <link rel="stylesheet" href="assets/css/global.css?v=4.0.0">
+  <link rel="stylesheet" href="assets/css/components.css?v=4.0.0">
+  <link rel="stylesheet" href="assets/css/responsive.css?v=4.0.0">
+  <link rel="stylesheet" href="assets/css/tests.css?v=4.0.0">
+
+  <style>
+    /* Sticky Top Bar (Search + Single Box Slider) */
+    .search-section {
+      position: sticky !important;
+      top: 0 !important;
+      z-index: 100 !important;
+      background: #F4FBF9 !important;
+      padding-top: 10px !important;
+      padding-bottom: 8px !important;
+      backdrop-filter: blur(16px) !important;
+      -webkit-backdrop-filter: blur(16px) !important;
+      margin-bottom: 15px !important;
+    }
+
+    .search-bar {
+      display: flex !important;
+      align-items: center !important;
+      padding: 10px 14px !important;
+      gap: 10px !important;
+      border-radius: 14px !important;
+      background: rgba(255, 255, 255, 0.98) !important;
+      box-shadow: 0 4px 18px rgba(7, 136, 102, 0.08) !important;
+      border: 1px solid rgba(7, 136, 102, 0.22) !important;
+      margin-bottom: 8px !important;
+    }
+
+    .search-bar input {
+      flex: 1 !important;
+      background: transparent !important;
+      font-size: 13px !important;
+      color: #10231E !important;
+      font-weight: 500 !important;
+      border: none !important;
+      outline: none !important;
+    }
+
+    /* Single Box Auto-Slider */
+    .single-slider-box {
+      width: 100% !important;
+      height: 56px !important;
+      position: relative !important;
+      overflow: hidden !important;
+      border-radius: 14px !important;
+      background: rgba(255, 255, 255, 0.92) !important;
+      backdrop-filter: blur(20px) !important;
+      -webkit-backdrop-filter: blur(20px) !important;
+      border: 1px solid rgba(7, 136, 102, 0.25) !important;
+      box-shadow: 0 8px 24px rgba(7, 136, 102, 0.1), inset 0 1px 2px rgba(255, 255, 255, 0.9) !important;
+    }
+
+    .slider-track {
+      display: flex !important;
+      width: 100% !important;
+      height: 100% !important;
+      transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1) !important;
+    }
+
+    .slide-item {
+      min-width: 100% !important;
+      width: 100% !important;
+      height: 100% !important;
+      padding: 6px 14px !important;
+      display: flex !display: flex !important;
+      justify-content: space-between !important;
+      align-items: center !important;
+      box-sizing: border-box !important;
+    }
+
+    .slide-content h4 {
+      font-size: 12px !important;
+      font-weight: 800 !important;
+      color: #045D49 !important;
+      margin-bottom: 1px !important;
+      line-height: 1.2 !important;
+    }
+
+    .slide-content p {
+      font-size: 10px !important;
+      color: #536E66 !important;
+      font-weight: 600 !important;
+      line-height: 1.2 !important;
+    }
+
+    .slide-badge {
+      font-size: 8px !important;
+      font-weight: 800 !important;
+      color: #E4005A !important;
+      text-transform: uppercase !important;
+      display: block !important;
+      letter-spacing: 0.3px !important;
+    }
+
+    .slide-btn {
+      background: linear-gradient(135deg, #078866, #045D49) !important;
+      color: #ffffff !important;
+      border: none !important;
+      padding: 6px 12px !important;
+      border-radius: 8px !important;
+      font-size: 10px !important;
+      font-weight: 700 !important;
+      cursor: pointer !important;
+      white-space: nowrap !important;
+      box-shadow: 0 4px 10px rgba(7, 136, 102, 0.25) !important;
+    }
+
+    /* 2-Column Compact Tests Grid */
+    .tests-grid {
+      display: grid !important;
+      grid-template-columns: repeat(2, 1fr) !important;
+      gap: 10px !important;
+      margin-bottom: 40px !important;
+    }
+
+    .test-card {
+      padding: 12px !important;
+      display: flex !important;
+      flex-direction: column !important;
+      justify-content: space-between !important;
+      gap: 8px !important;
+      background: #FFFFFF !important;
+      border: 1px solid rgba(0, 0, 0, 0.08) !important;
+      border-radius: 14px !important;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04) !important;
+    }
+
+    .test-card-top {
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 4px !important;
+    }
+
+    .test-card-header-row {
+      display: flex !important;
+      justify-content: space-between !important;
+      align-items: center !important;
+      margin-bottom: 2px !important;
+    }
+
+    .test-card-top h4 {
+      font-size: 12px !important;
+      font-weight: 700 !important;
+      color: #10231E !important;
+      line-height: 1.3 !important;
+      min-height: 32px !important;
+    }
+
+    .test-code-tag {
+      font-size: 9px !important;
+      font-weight: 700 !important;
+      color: #536E66 !important;
+      text-transform: uppercase !important;
+    }
+
+    /* Card Fasting Tag Styles */
+    .card-fasting-tag {
+      font-size: 8px !important;
+      font-weight: 800 !important;
+      padding: 2px 6px !important;
+      border-radius: 6px !important;
+      text-transform: uppercase !important;
+      letter-spacing: 0.2px !important;
+      white-space: nowrap !important;
+    }
+
+    .card-fasting-tag.fasting {
+      background: rgba(228, 0, 90, 0.1) !important;
+      color: #E4005A !important;
+      border: 1px solid rgba(228, 0, 90, 0.25) !important;
+    }
+
+    .card-fasting-tag.non-fasting {
+      background: rgba(7, 136, 102, 0.1) !important;
+      color: #078866 !important;
+      border: 1px solid rgba(7, 136, 102, 0.25) !important;
+    }
+
+    /* Card Box Parameters Count Badge */
+    .card-param-badge {
+      display: inline-flex !important;
+      align-items: center !important;
+      gap: 4px !important;
+      background: rgba(7, 136, 102, 0.08) !important;
+      color: #045D49 !important;
+      border: 1px solid rgba(7, 136, 102, 0.2) !important;
+      font-size: 9.5px !important;
+      font-weight: 700 !important;
+      padding: 3px 6px !important;
+      border-radius: 6px !important;
+      width: fit-content !important;
+      margin-top: 2px !important;
+    }
+
+    .know-more-row {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      padding: 6px 8px !important;
+      background: rgba(111, 66, 193, 0.05) !important;
+      border-radius: 6px !important;
+      cursor: pointer !important;
+    }
+
+    .know-more-text {
+      flex: 1 !important;
+      margin-left: 5px !important;
+      font-size: 11px !important;
+      font-weight: 600 !important;
+      color: #6b21a8 !important;
+    }
+
+    .info-icon, .arrow-icon {
+      font-size: 11px !important;
+      color: #6b21a8 !important;
+    }
+
+    .test-pricing-row {
+      display: flex !important;
+      align-items: baseline !important;
+      gap: 6px !important;
+    }
+
+    .mrp {
+      font-size: 11px !important;
+      color: #dc2626 !important;
+      text-decoration: line-through !important;
+      font-weight: 600 !important;
+    }
+
+    .offer-price {
+      font-size: 13px !important;
+      font-weight: 800 !important;
+      color: #10231E !important;
+    }
+
+    .book-btn {
+      width: 100% !important;
+      padding: 8px 6px !important;
+      font-size: 11px !important;
+      font-weight: 700 !important;
+      border-radius: 8px !important;
+      border: none !important;
+      cursor: pointer !important;
+      text-align: center !important;
+    }
+
+    .add-cart-btn {
+      background: #E4005A !important;
+      color: #ffffff !important;
+    }
+
+    .book-btn.added-btn {
+      background: #10b981 !important;
+      color: #ffffff !important;
+    }
+
+    /* Updated Bottom Navigation */
+    .bottom-nav {
+      position: fixed !important;
+      bottom: 0 !important;
+      left: 0 !important;
+      right: 0 !important;
+      z-index: 900 !important;
+      display: flex !important;
+      justify-content: space-around !important;
+      padding: 8px 6px calc(8px + env(safe-area-inset-bottom)) 6px !important;
+      background: rgba(255, 255, 255, 0.98) !important;
+      backdrop-filter: blur(24px) !important;
+      -webkit-backdrop-filter: blur(24px) !important;
+      border-top: 1px solid rgba(7, 136, 102, 0.15) !important;
+      box-shadow: 0 -8px 25px rgba(0, 0, 0, 0.06) !important;
+    }
+
+    .nav-item {
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: center !important;
+      gap: 2px !important;
+      text-decoration: none !important;
+      color: #536E66 !important;
+      font-size: 10px !important;
+      font-weight: 700 !important;
+      position: relative !important;
+      flex: 1 !important;
+      text-align: center !important;
+    }
+
+    .nav-item span:first-child {
+      font-size: 18px !important;
+    }
+
+    .nav-item.active, .nav-item:hover {
+      color: #E4005A !important;
+    }
+
+    .cart-badge {
+      position: absolute !important;
+      top: -4px !important;
+      right: calc(50% - 16px) !important;
+      background: #E4005A !important;
+      color: #FFFFFF !important;
+      font-size: 9px !important;
+      font-weight: 800 !important;
+      padding: 1px 5px !important;
+      border-radius: 10px !important;
+      min-width: 16px !important;
+      text-align: center !important;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Main Container -->
+  <main class="main-container" style="padding-top: 10px;">
+    
+    <!-- Top Sticky Search Bar & Single Box 3D Auto-Slider -->
+    <section class="search-section">
+      <div class="search-bar glass-card">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="tests-search-input" placeholder="Search tests by name, symptoms (e.g. fever, joint pain)..." autocomplete="off">
+        <button class="voice-search-btn" id="voice-search-btn" onclick="TestsPage.startVoiceSearch()" title="Voice Search">🎙️</button>
+      </div>
+
+      <!-- Single Box Slider -->
+      <div class="single-slider-box">
+        <div class="slider-track" id="singleSliderTrack">
+          <div class="slide-item">
+            <div class="slide-content">
+              <span class="slide-badge">🔥 SPECIAL OFFER</span>
+              <h4>Full Body Health Package</h4>
+              <p>75+ Essential Tests @ ₹999 only</p>
+            </div>
+            <button class="slide-btn" onclick="window.location.href='packages.html'">Book →</button>
+          </div>
+          <div class="slide-item">
+            <div class="slide-content">
+              <span class="slide-badge">⚡ NABL ACCREDITED</span>
+              <h4>Diabetes Care Panel</h4>
+              <p>HbA1c & Fasting Glucose @ ₹499</p>
+            </div>
+            <button class="slide-btn" onclick="window.location.href='packages.html'">Book →</button>
+          </div>
+          <div class="slide-item">
+            <div class="slide-content">
+              <span class="slide-badge">🛡️ PREVENTIVE CARE</span>
+              <h4>Comprehensive Heart Check</h4>
+              <p>Lipid profile & cardiac screen @ ₹799</p>
+            </div>
+            <button class="slide-btn" onclick="window.location.href='packages.html'">Book →</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tests Catalogue Container -->
+    <section class="catalogue-section">
+      <div id="tests-catalogue-container" class="tests-grid">
+        <!-- Dynamically rendered via tests.js -->
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Updated Bottom Navigation (Home | Reports | Track Booking | Cart | Profile) -->
+  <nav class="bottom-nav glass-card">
+    <a href="customer.html" class="nav-item">
+      <span>🏠</span>
+      <span>Home</span>
+    </a>
+    <a href="reports.html" class="nav-item">
+      <span>📑</span>
+      <span>Reports</span>
+    </a>
+    <a href="bookings.html" class="nav-item">
+      <span>📍</span>
+      <span>Track Booking</span>
+    </a>
+    <a href="cart.html" class="nav-item">
+      <span>🛒</span>
+      <span>Cart</span>
+      <span class="cart-badge" style="display:none;">0</span>
+    </a>
+    <a href="profile.html" class="nav-item">
+      <span>👤</span>
+      <span>Profile</span>
+    </a>
+  </nav>
+
+  <!-- Core JavaScript Scripts -->
+  <script src="assets/js/config.js?v=4.0.0"></script>
+  <script src="assets/js/utils.js?v=4.0.0"></script>
+  <script src="assets/js/api.js?v=4.0.0"></script>
+  <script src="assets/js/offline-db.js?v=4.0.0"></script>
+  <script src="assets/js/offline-sync.js?v=4.0.0"></script>
+  <script src="assets/js/auth.js?v=4.0.0"></script>
+  <script src="assets/js/app.js?v=4.0.0"></script>
+  <script src="assets/js/tests.js?v=4.0.0"></script>
+
+  <!-- Slider Auto-slide Script -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const track = document.getElementById('singleSliderTrack');
+      if (track) {
+        let currentSlide = 0;
+        const totalSlides = track.children.length;
+        
+        setInterval(() => {
+          currentSlide = (currentSlide + 1) % totalSlides;
+          track.style.transform = `translateX(-${currentSlide * 100}%)`;
+        }, 3200);
+      }
+    });
+  </script>
+</body>
+</html>
