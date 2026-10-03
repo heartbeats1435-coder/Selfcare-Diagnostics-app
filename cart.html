@@ -100,7 +100,7 @@
             <div class="choice-details">
               <h3>Home Sample Pickup</h3>
               <p>Certified phlebotomist collects blood / urine sample directly at your doorstep.</p>
-              <div class="badge-price-tag">Doorstep Charge: ₹100</div>
+              <div class="badge-price-tag" id="home-collection-badge-tag">Doorstep Charge: ₹100 (FREE on ₹500+)</div>
             </div>
           </div>
 
@@ -212,16 +212,15 @@
           </div>
 
           <div class="payment-options-grid-3d">
-            <!-- Option 1: Online UPI -->
+            <!-- Option 1: Online UPI (10% Discount Removed) -->
             <div class="pay-option-card-3d" id="pay-card-online" onclick="CartPage.selectPaymentMode('online')">
               <div class="pay-card-left">
                 <input type="radio" name="payment_mode" value="online">
                 <div>
                   <div class="pay-title-inline">
                     <strong>UPI / GPay / PhonePe / Paytm</strong>
-                    <span class="discount-badge-green">10% OFF</span>
                   </div>
-                  <p>Instant 10% laboratory discount applied on online payment.</p>
+                  <p>Fast & secure payment directly via your preferred UPI app.</p>
                 </div>
               </div>
               <span class="pay-icon-tag">⚡ Fast</span>
@@ -257,7 +256,7 @@
               <span class="coupon-emoji">🎉</span>
               <div>
                 <strong id="applied-coupon-code-text">SELFCARE10</strong>
-                <p id="applied-coupon-desc-text">10% Discount Applied Successfully</p>
+                <p id="applied-coupon-desc-text">Discount Applied Successfully</p>
               </div>
             </div>
             <button type="button" class="remove-coupon-btn-3d" onclick="CartPage.removeCoupon()">Remove ✕</button>
@@ -320,8 +319,9 @@
               <span class="s-value green-val" id="bill-coupon-amount">- ₹0</span>
             </div>
 
-            <div class="summary-row discount-row" id="bill-online-pay-row">
-              <span class="s-label">Online Payment Discount (10%):</span>
+            <!-- Online Discount row removed from view -->
+            <div class="summary-row discount-row" id="bill-online-pay-row" style="display: none !important;">
+              <span class="s-label">Online Payment Discount:</span>
               <span class="s-value green-val" id="bill-online-pay-discount">- ₹0</span>
             </div>
 
@@ -380,7 +380,7 @@
        MODALS WITH ENHANCED 3D GLASSMORPHISM
        ========================================================= -->
 
-  <!-- Modal: Opening UPI App (High-End 3D Animated Glass Card) -->
+  <!-- Modal: Opening UPI App -->
   <div id="upi-payment-modal" class="sia-modal-overlay" style="display: none;">
     <div class="sia-modal-content glass-modal-3d upi-3d-card animate-3d-pop">
       <div class="sia-modal-header upi-glow-header">
@@ -391,7 +391,6 @@
       </div>
 
       <div class="sia-modal-body upi-body-center">
-        <!-- 3D Glowing Animated Ring -->
         <div class="upi-ring-glow-wrapper">
           <div class="upi-outer-glow-ring"></div>
           <div class="upi-spinner-3d"></div>
@@ -401,7 +400,6 @@
         <h3 class="upi-title-text">Opening Secure UPI Gateway...</h3>
         <p class="upi-sub-message">Redirecting securely to Google Pay, PhonePe, Paytm, or BHIM UPI app.</p>
 
-        <!-- 3D Glass Order Reference Box -->
         <div class="upi-order-preview-3d-box">
           <div class="preview-line">
             <span>Booking ID:</span>
@@ -553,7 +551,7 @@
     </div>
   </div>
 
-  <!-- Modal: Available Coupons (Fixed Rich 3D List) -->
+  <!-- Modal: Available Coupons -->
   <div id="available-coupons-modal" class="sia-modal-overlay" style="display: none;">
     <div class="sia-modal-content glass-modal-3d animate-3d-pop">
       <div class="sia-modal-header">
