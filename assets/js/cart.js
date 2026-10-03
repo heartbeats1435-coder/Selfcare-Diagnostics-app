@@ -1,11 +1,11 @@
 /* file: assets/js/cart.js */
 /**
- * Selfcare Diagnostics - Slide-by-Slide Wizard Engine v7.4.0
+ * Selfcare Diagnostics - Slide-by-Slide Wizard Engine v7.5.0
  * Features:
- * 1. 3-Part Fixed Control Bar: [Left: Back / Exit] | [Center: Highlighted Grand Total] | [Right: Next / Confirm]
- * 2. Add-on Mode: Directly lands on Slide 3 (Payment & Offers). Slides 1 & 2 are strictly blocked!
- * 3. Left button displays '✕ Exit' in Add-on Mode, and '← Back' in normal mode (from Slide 2 onwards).
- * 4. High-End 3D Animated UPI Modal with glowing pulsing ring.
+ * 1. Home Collection Charge Threshold: Free (₹0) for orders >= ₹500; ₹100/₹150 for orders < ₹500.
+ * 2. Online Payment Discount completely removed.
+ * 3. 3-Part Fixed Control Bar: [Left: Back / Exit] | [Center: Highlighted Grand Total] | [Right: Next / Confirm]
+ * 4. Add-on Mode support & Direct UPI checkout integration.
  */
 
 const CartPage = {
@@ -23,12 +23,12 @@ const CartPage = {
   selectedSlotDay: 'Today',
   selectedTimeSlot: '',
 
-  selectedPaymentMode: null, // Strictly null by default
-  collectionType: null, // Strictly null by default
+  selectedPaymentMode: null,
+  collectionType: null,
   appliedCoupon: null,
   couponDiscountAmount: 0,
-  onlineDiscountAmount: 0,
-  doorstepCharge: 100,
+  onlineDiscountAmount: 0, // Online discount removed
+  doorstepCharge: 0,
 
   currentPickupAddress: 'Chennai, Tamil Nadu',
   currentPickupLocation: 'Not set',
@@ -77,7 +77,6 @@ const CartPage = {
       const requestedSlide = urlParams ? parseInt(urlParams.get('slide'), 10) : null;
 
       if (this.isAddonMode) {
-        // Direct land on Slide 3 (Payment & Offers) for Add-on test flows
         this.goToSlide(3, true);
         this.updateAddonStepperUI();
       } else if (requestedSlide && requestedSlide >= 1 && requestedSlide <= 4) {
@@ -91,18 +90,16 @@ const CartPage = {
   },
 
   // ==========================================================
-  // SLIDE-BY-SLIDE WIZARD NAVIGATION WITH ADD-ON LOCKOUT
+  // SLIDE-BY-SLIDE WIZARD NAVIGATION
   // ==========================================================
   goToSlide(slideIndex, force = false) {
     if (slideIndex < 1 || slideIndex > this.totalSlides) return;
 
-    // RULE 1: In Add-on mode, Slides 1 & 2 are STRICTLY LOCKED OUT
     if (this.isAddonMode && slideIndex < 3) {
       Utils.showToast('Patient details and collection mode are locked to this booking', 'info');
       return;
     }
 
-    // Normal Flow Validations
     if (!force && !this.isAddonMode) {
       if (slideIndex > 1 && !this.collectionType) {
         Utils.showToast('Please select Home Pickup or Lab Walk-in to continue', 'error');
@@ -128,7 +125,6 @@ const CartPage = {
       }
     }
 
-    // Add-on mode: Moving from Slide 3 to 4 requires payment mode selection
     if (this.isAddonMode && slideIndex === 4 && !this.selectedPaymentMode) {
       Utils.showToast('Please select a payment method (UPI or Cash) to view summary', 'error');
       return;
@@ -136,7 +132,6 @@ const CartPage = {
 
     this.currentSlide = slideIndex;
 
-    // Slide visibility & Stepper nodes toggle
     for (let i = 1; i <= this.totalSlides; i++) {
       const slideEl = document.getElementById(`cart-slide-${i}`);
       const stepNode = document.getElementById(`step-node-${i}`);
@@ -182,33 +177,25 @@ const CartPage = {
     if (conn2) conn2.classList.add('filled');
   },
 
-  // ==========================================================
-  // UNIFIED 3-COLUMN BOTTOM CONTROL BAR LOGIC
-  // ==========================================================
   updateBottomControlBarUI() {
     const backBtn = document.getElementById('bar-back-btn');
     const nextBtn = document.getElementById('floating-action-btn');
 
     if (!backBtn || !nextBtn) return;
 
-    // 1. LEFT BUTTON LOGIC:
     if (this.currentSlide === 1) {
-      // Slide 1: No back button
       backBtn.style.visibility = 'hidden';
       backBtn.classList.remove('exit-bar-btn');
     } else if (this.isAddonMode && this.currentSlide === 3) {
-      // Add-on mode on Slide 3: Shows '✕ Exit'
       backBtn.style.visibility = 'visible';
       backBtn.textContent = '✕ Exit';
       backBtn.classList.add('exit-bar-btn');
     } else {
-      // Normal back button from Slide 2, 3, 4
       backBtn.style.visibility = 'visible';
       backBtn.textContent = '← Back';
       backBtn.classList.remove('exit-bar-btn');
     }
 
-    // 2. RIGHT BUTTON LOGIC:
     if (this.currentSlide === 1) {
       nextBtn.textContent = 'Select Patient ➔';
       nextBtn.disabled = !this.collectionType;
@@ -226,7 +213,6 @@ const CartPage = {
 
   handleBarBack() {
     if (this.isAddonMode && this.currentSlide === 3) {
-      // Trigger Exit Addon mode
       this.exitAddonMode();
       return;
     }
@@ -257,7 +243,7 @@ const CartPage = {
   },
 
   // ==========================================================
-  // SLIDE 1: COLLECTION TYPE LOGIC
+  // SLIDE 1: COLLECTION TYPE & THRESHOLD CHARGE LOGIC
   // ==========================================================
   selectCollectionType(type) {
     if (this.isAddonMode) {
@@ -297,12 +283,26 @@ const CartPage = {
     this.updateBottomControlBarUI();
   },
 
-  calculateDoorstepCharge() {
+  calculateDoorstepCharge(subtotal = null) {
     if (this.isAddonMode) return 0;
     if (this.collectionType === 'lab') return 0;
     if (!this.collectionType) return 0;
     if (this.cart.length === 0) return 0;
 
+    let total = subtotal;
+    if (total === null) {
+      total = this.cart.reduce((sum, item) => {
+        if (item.isExistingBookingItem) return sum;
+        return sum + Number(item.price || item.OfferPrice || 0);
+      }, 0);
+    }
+
+    // 500 or above -> No home collection charges (FREE)
+    if (total >= 500) {
+      return 0;
+    }
+
+    // Below 500 -> Add charges (PPBS dual visit: ₹150; Standard visit: ₹100)
     const isPPBSTest = (item) => {
       const name = (item.name || item.TestName || '').toUpperCase();
       const code = (item.code || item.TestCode || '').toUpperCase();
@@ -314,6 +314,28 @@ const CartPage = {
 
     if (ppbsItems.length > 0 && otherItems.length > 0) return 150;
     return 100;
+  },
+
+  updateHomeCollectionBadge(subtotalNewTests) {
+    const badge = document.getElementById('home-collection-badge-tag');
+    if (!badge) return;
+
+    if (subtotalNewTests >= 500) {
+      badge.textContent = 'Collection Charge: FREE (₹0 - Orders ₹500+)';
+      badge.classList.add('free-tag');
+    } else {
+      const isPPBSTest = (item) => {
+        const name = (item.name || item.TestName || '').toUpperCase();
+        const code = (item.code || item.TestCode || '').toUpperCase();
+        return name.includes('PPBS') || name.includes('POST PRANDIAL') || code === 'T0009' || code === 'SCDT0009';
+      };
+      const ppbsItems = this.cart.filter(isPPBSTest);
+      const otherItems = this.cart.filter(i => !isPPBSTest(i));
+      const charge = (ppbsItems.length > 0 && otherItems.length > 0) ? 150 : 100;
+
+      badge.textContent = charge === 150 ? 'Doorstep Charge: ₹150 (Dual Visit for PPBS)' : 'Doorstep Charge: ₹100';
+      badge.classList.remove('free-tag');
+    }
   },
 
   calculateBillSummary() {
@@ -350,14 +372,14 @@ const CartPage = {
     }
     this.couponDiscountAmount = couponDiscount;
 
-    let onlineDiscount = 0;
-    if (this.selectedPaymentMode === 'online' && subtotalNewTests > 0) {
-      onlineDiscount = Math.round(subtotalNewTests * 0.10);
-    }
-    this.onlineDiscountAmount = onlineDiscount;
+    // Online discount is strictly 0
+    this.onlineDiscountAmount = 0;
 
-    this.doorstepCharge = this.calculateDoorstepCharge();
-    const finalPayable = Math.max(0, subtotalNewTests - couponDiscount - onlineDiscount + this.doorstepCharge);
+    // Doorstep charge calculation based on threshold (>= 500 is FREE)
+    this.doorstepCharge = this.calculateDoorstepCharge(subtotalNewTests);
+    this.updateHomeCollectionBadge(subtotalNewTests);
+
+    const finalPayable = Math.max(0, subtotalNewTests - couponDiscount + this.doorstepCharge);
 
     // Update Centered Highlighted Grand Total
     const stickyPayableEl = document.getElementById('sticky-payable-amount');
@@ -371,7 +393,6 @@ const CartPage = {
     const couponLabel = document.getElementById('bill-coupon-label');
     const couponAmtEl = document.getElementById('bill-coupon-amount');
     const onlineRow = document.getElementById('bill-online-pay-row');
-    const onlineAmtEl = document.getElementById('bill-online-pay-discount');
     const chargeLabel = document.getElementById('bill-collection-charge-label');
     const chargeVal = document.getElementById('bill-collection-charge-val');
     const finalPayableEl = document.getElementById('bill-final-payable');
@@ -389,12 +410,7 @@ const CartPage = {
     }
 
     if (onlineRow) {
-      if (this.selectedPaymentMode === 'online' && subtotalNewTests > 0) {
-        onlineRow.style.display = 'flex';
-        if (onlineAmtEl) onlineAmtEl.textContent = `- ${Utils.formatCurrency(onlineDiscount)}`;
-      } else {
-        onlineRow.style.display = 'none';
-      }
+      onlineRow.style.display = 'none';
     }
 
     if (chargeVal) {
@@ -407,12 +423,18 @@ const CartPage = {
         chargeVal.classList.add('green-val');
         if (chargeLabel) chargeLabel.textContent = 'Direct Lab Visit Fee:';
       } else if (this.collectionType === 'home') {
-        chargeVal.classList.remove('green-val');
-        chargeVal.textContent = Utils.formatCurrency(this.doorstepCharge);
-        if (chargeLabel) {
-          chargeLabel.textContent = this.doorstepCharge === 150 
-            ? 'Doorstep Collection (₹150 - Dual visit for PPBS):' 
-            : 'Doorstep Sample Collection:';
+        if (this.doorstepCharge === 0) {
+          chargeVal.textContent = 'FREE (₹0 - Order ₹500+)';
+          chargeVal.classList.add('green-val');
+          if (chargeLabel) chargeLabel.textContent = 'Doorstep Sample Collection:';
+        } else {
+          chargeVal.classList.remove('green-val');
+          chargeVal.textContent = Utils.formatCurrency(this.doorstepCharge);
+          if (chargeLabel) {
+            chargeLabel.textContent = this.doorstepCharge === 150 
+              ? 'Doorstep Collection (₹150 - Dual visit for PPBS):' 
+              : 'Doorstep Sample Collection:';
+          }
         }
       } else {
         chargeVal.textContent = 'Select in Step 1';
@@ -955,7 +977,7 @@ const CartPage = {
     if (mobileEl) mobileEl.textContent = `+91 ${this.selectedPatientPhone}`;
     if (ageGenderEl) ageGenderEl.textContent = `${this.selectedPatientAge ? this.selectedPatientAge + ' Yrs' : 'Age not set'} • ${this.selectedPatientGender || 'Not set'}`;
     if (collectionEl) {
-      collectionEl.textContent = this.isAddonMode ? 'Doorstep Pickup (Clubbed ₹0)' : (this.collectionType === 'lab' ? 'Direct Lab Walk-in (₹0)' : 'Doorstep Pickup (Home)');
+      collectionEl.textContent = this.isAddonMode ? 'Doorstep Pickup (Clubbed ₹0)' : (this.collectionType === 'lab' ? 'Direct Lab Walk-in (₹0)' : `Doorstep Pickup (${this.doorstepCharge === 0 ? 'FREE ₹0' : '₹' + this.doorstepCharge})`);
     }
     if (slotEl) slotEl.textContent = `${this.selectedSlotDay} (${this.selectedTimeSlot})`;
     if (totalEl) totalEl.textContent = currentPayable;
@@ -988,9 +1010,9 @@ const CartPage = {
     });
 
     const couponDiscount = this.couponDiscountAmount;
-    const onlineDiscount = this.selectedPaymentMode === 'online' ? this.onlineDiscountAmount : 0;
+    const onlineDiscount = 0; // Removed
     const doorstepCharge = this.isAddonMode ? 0 : this.doorstepCharge;
-    const finalPayable = Math.max(0, subtotalNew - couponDiscount - onlineDiscount + doorstepCharge);
+    const finalPayable = Math.max(0, subtotalNew - couponDiscount + doorstepCharge);
 
     const targetDate = new Date();
     if (this.selectedSlotDay === 'Tomorrow') targetDate.setDate(targetDate.getDate() + 1);
@@ -1020,7 +1042,7 @@ const CartPage = {
       timeSlot: this.selectedTimeSlot,
       subtotal: subtotalNew,
       couponDiscount: couponDiscount,
-      onlineDiscount: onlineDiscount,
+      onlineDiscount: 0,
       doorstepCharge: doorstepCharge,
       finalAmount: finalPayable,
       couponCode: this.appliedCoupon || ''
@@ -1199,14 +1221,17 @@ const CartPage = {
       }
     } catch (err) {}
 
-    this.finalizeConfirmedBooking(finalId, booking.finalAmount, 'Online UPI (10% Discount)', booking.newItems);
+    this.finalizeConfirmedBooking(finalId, booking.finalAmount, 'Online UPI', booking.newItems);
     this.closeModal('upi-confirm-modal');
     this.resetCheckoutButtonState();
   },
 
   finalizeConfirmedBooking(bookingId, payableAmount, payModeTitle, newItems) {
     const isLab = this.collectionType === 'lab';
-    const typeLabel = isLab ? 'Direct Lab Walk-in (FREE ₹0)' : `Doorstep Home Pickup (₹${this.doorstepCharge})`;
+    const typeLabel = isLab 
+      ? 'Direct Lab Walk-in (FREE ₹0)' 
+      : (this.doorstepCharge === 0 ? 'Doorstep Home Pickup (FREE ₹0 - Orders ₹500+)' : `Doorstep Home Pickup (₹${this.doorstepCharge})`);
+    
     const addressDetails = isLab 
       ? `🏢 *Visit Center:* Selfcare Diagnostics Lab, Chennai` 
       : `🏠 *Address:* ${this.currentPickupAddress}\n📍 *Location Link:* ${this.currentPickupLocation}`;

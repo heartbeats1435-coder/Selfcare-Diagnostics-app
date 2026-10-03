@@ -1,14 +1,12 @@
 /* file: assets/js/packages.js */
 /**
- * Selfcare Diagnostics - Health Packages Page JS (Zero-Fail Edition) v4.2.0
+ * Selfcare Diagnostics - Health Packages Page JS v5.0.0
  * Features:
- * 1. Dual-Layer Conflict Validation Engine check before adding packages to cart.
- * 2. Multi-tenant Vault-Aware Cart Isolation (selfcare_cart_${activeUser}).
- * 3. Dedicated Category Switcher (selectCategory).
- * 4. Parameters Count Badge on card box (`🧪 X Parameters Included`).
- * 5. Native Web Speech Recognition.
- * 6. Natural Language Symptom Search Engine.
- * 7. Fly-to-Cart Animation & 3D Parameter Details Modal.
+ * 1. Strict Backend-Only Data Loading.
+ * 2. 3-Tier Neon Glow Effects for Top 3 Packages.
+ * 3. Dynamic Category Selection Bar.
+ * 4. Advanced Multi-Tier Conflict Validation Engine (Blocks Duplicate Packages & Tests).
+ * 5. Safe ID-based Cart Toggle & Voice Search.
  */
 
 const PackagesPage = {
@@ -16,133 +14,36 @@ const PackagesPage = {
   currentCategory: 'All',
   speechRecognitionInstance: null,
 
-  fallbackPackages: [
-    {
-      PackageID: 'PKG001',
-      PackageCode: 'PKG001',
-      PackageName: 'Selfcare Basic Health Panel',
-      Category: 'Preventive Health',
-      SampleType: 'Blood & Urine',
-      TAT: '24 Hours',
-      FastingRequired: true,
-      Preparation: '10 - 12 hours overnight fasting is mandatory.',
-      MRP: 4000,
-      OfferPrice: 1299,
-      Description: 'Essential screening covering CBC, Fasting Blood Sugar, Lipid Profile, and Urine Routine.',
-      Parameters: 'CBC, Fasting Blood Sugar, Lipid Profile, Urine Routine & Microscopy'
-    },
-    {
-      PackageID: 'PKG002',
-      PackageCode: 'PKG002',
-      PackageName: 'Selfcare Premium Health Panel',
-      Category: 'Comprehensive Health',
-      SampleType: 'Blood & Urine',
-      TAT: '24 Hours',
-      FastingRequired: true,
-      Preparation: '10 - 12 hours overnight fasting is mandatory.',
-      MRP: 7000,
-      OfferPrice: 1999,
-      Description: 'Broader preventive screening panel covering LFT, KFT, Thyroid TSH, CBC, Lipid Profile, and Urine markers.',
-      Parameters: 'CBC, Liver Function Test (LFT), Kidney Function Test (KFT), Lipid Profile, Thyroid TSH, Fasting Blood Sugar, Urine Routine'
-    },
-    {
-      PackageID: 'PKG003',
-      PackageCode: 'PKG003',
-      PackageName: 'Selfcare Elite Health Panel',
-      Category: 'Executive Wellness',
-      SampleType: 'Blood & Urine',
-      TAT: '24 Hours',
-      FastingRequired: true,
-      Preparation: '12 hours overnight fasting required.',
-      MRP: 9000,
-      OfferPrice: 2999,
-      Description: 'Comprehensive executive full body checkup panel including vitamins, cardiac risk markers, and organ panels.',
-      Parameters: 'Complete Hemogram, Vitamin D3, Vitamin B12, HbA1c, Lipid Profile, LFT, KFT, Thyroid Profile (T3, T4, TSH)'
-    },
-    {
-      PackageID: 'PKG010',
-      PackageCode: 'PKG010',
-      PackageName: 'Fever Advanced Panel',
-      Category: 'Fever Health',
-      SampleType: 'Blood',
-      TAT: '24 Hours',
-      FastingRequired: false,
-      MRP: 1500,
-      OfferPrice: 799,
-      Description: 'Complete diagnostic screen for acute fever covering Malaria Antigen, Widal, CBC, ESR, and CRP.',
-      Parameters: 'CBC, ESR, CRP, Malaria Antigen (Rapid), Widal Slide Test'
-    },
-    {
-      PackageID: 'PKG011',
-      PackageCode: 'PKG011',
-      PackageName: 'Dengue Complete Profile',
-      Category: 'Fever Health',
-      SampleType: 'Blood',
-      TAT: '24 Hours',
-      FastingRequired: false,
-      MRP: 1000,
-      OfferPrice: 499,
-      Description: 'Confirmatory viral dengue screen with NS1 antigen and antibody markers.',
-      Parameters: 'Dengue NS1 Antigen, Dengue IgM Antibody, Dengue IgG Antibody'
-    },
-    {
-      PackageID: 'PKG012',
-      PackageCode: 'PKG012',
-      PackageName: 'Dengue + Malaria Combined Screen',
-      Category: 'Fever Health',
-      SampleType: 'Blood',
-      TAT: '24 Hours',
-      FastingRequired: false,
-      MRP: 1300,
-      OfferPrice: 699,
-      Description: 'Rapid dual screening for monsoon seasonal fevers.',
-      Parameters: 'Dengue NS1, Dengue IgM, Dengue IgG, Malaria Rapid Antigen, Peripheral Smear'
-    },
-    {
-      PackageID: 'PKG013',
-      PackageCode: 'PKG013',
-      PackageName: 'Typhoid Screening (Widal)',
-      Category: 'Fever Health',
-      SampleType: 'Blood',
-      TAT: '24 Hours',
-      FastingRequired: false,
-      MRP: 500,
-      OfferPrice: 299,
-      Description: 'Widal Slide Agglutination & Typhoid IgM screen for enteric fever diagnosis.',
-      Parameters: 'Widal Slide Test, Typhoid IgM'
-    }
-  ],
-
   symptomDictionary: {
-    'fever': ['fever', 'cbc', 'esr', 'crp', 'malaria', 'widal', 'dengue', 'typhoid', 'temperature', 'pkg010', 'pkg011', 'pkg012', 'pkg013'],
+    'fever': ['fever', 'cbc', 'esr', 'crp', 'malaria', 'widal', 'dengue', 'typhoid', 'temperature'],
     'temperature': ['fever', 'cbc', 'esr', 'crp', 'malaria', 'widal', 'dengue', 'typhoid'],
     'kaichal': ['fever', 'cbc', 'esr', 'crp', 'malaria', 'widal', 'dengue', 'typhoid'],
     'chills': ['malaria', 'dengue', 'widal', 'fever', 'cbc'],
     'cold': ['fever', 'cbc', 'crp'],
-    'joint pain': ['vitamin', 'calcium', 'uric acid', 'arthritis', 'elite', 'premium', 'pkg002', 'pkg003'],
-    'knee pain': ['vitamin', 'calcium', 'uric acid', 'elite', 'premium'],
-    'muttu vali': ['vitamin', 'calcium', 'uric acid', 'elite', 'premium'],
-    'arthritis': ['vitamin', 'calcium', 'uric acid', 'elite'],
-    'chest pain': ['cardiac', 'heart', 'lipid profile', 'cholesterol', 'elite', 'premium', 'pkg002', 'pkg003'],
-    'nenju vali': ['cardiac', 'heart', 'lipid profile', 'cholesterol', 'elite', 'premium'],
-    'heart': ['cardiac', 'heart', 'lipid profile', 'cholesterol', 'elite'],
-    'tired': ['vitamin', 'b12', 'vitamin d', 'basic', 'premium', 'elite', 'sugar', 'hba1c', 'pkg001', 'pkg002', 'pkg003'],
-    'fatigue': ['vitamin', 'b12', 'vitamin d', 'basic', 'premium', 'elite', 'sugar', 'hba1c'],
-    'weakness': ['vitamin', 'b12', 'vitamin d', 'basic', 'premium', 'elite'],
-    'asathi': ['vitamin', 'b12', 'vitamin d', 'basic', 'premium', 'elite'],
-    'sugar': ['sugar', 'glucose', 'diabetes', 'fbs', 'hba1c', 'basic', 'premium', 'elite', 'pkg001', 'pkg002', 'pkg003'],
-    'diabetes': ['sugar', 'glucose', 'diabetes', 'fbs', 'hba1c', 'basic', 'premium', 'elite'],
+    'joint pain': ['vitamin', 'calcium', 'uric acid', 'arthritis'],
+    'knee pain': ['vitamin', 'calcium', 'uric acid'],
+    'muttu vali': ['vitamin', 'calcium', 'uric acid'],
+    'arthritis': ['vitamin', 'calcium', 'uric acid'],
+    'chest pain': ['cardiac', 'heart', 'lipid profile', 'cholesterol'],
+    'nenju vali': ['cardiac', 'heart', 'lipid profile', 'cholesterol'],
+    'heart': ['cardiac', 'heart', 'lipid profile', 'cholesterol'],
+    'tired': ['vitamin', 'b12', 'vitamin d', 'sugar', 'hba1c'],
+    'fatigue': ['vitamin', 'b12', 'vitamin d', 'sugar', 'hba1c'],
+    'weakness': ['vitamin', 'b12', 'vitamin d'],
+    'asathi': ['vitamin', 'b12', 'vitamin d'],
+    'sugar': ['sugar', 'glucose', 'diabetes', 'fbs', 'hba1c'],
+    'diabetes': ['sugar', 'glucose', 'diabetes', 'fbs', 'hba1c'],
     'sakkarai': ['sugar', 'glucose', 'diabetes', 'fbs', 'hba1c'],
-    'thyroid': ['thyroid', 'tsh', 'premium', 'elite', 'pkg002', 'pkg003'],
-    'full body': ['basic', 'premium', 'elite', 'preventive', 'wellness', 'pkg001', 'pkg002', 'pkg003'],
-    'master health': ['elite', 'premium', 'pkg002', 'pkg003'],
-    'body checkup': ['basic', 'premium', 'elite', 'pkg001', 'pkg002', 'pkg003'],
-    'liver': ['lft', 'liver', 'premium', 'elite', 'pkg002', 'pkg003'],
-    'kidney': ['kft', 'kidney', 'creatinine', 'premium', 'elite', 'pkg002', 'pkg003'],
-    'jaundice': ['lft', 'liver', 'bilirubin', 'premium', 'elite'],
-    'dengue': ['dengue', 'ns1', 'platelet', 'fever', 'pkg011', 'pkg012'],
-    'malaria': ['malaria', 'smear', 'fever', 'pkg010', 'pkg012'],
-    'typhoid': ['typhoid', 'widal', 'fever', 'pkg010', 'pkg013']
+    'thyroid': ['thyroid', 'tsh'],
+    'full body': ['preventive', 'wellness', 'full body', 'health panel'],
+    'master health': ['master health', 'executive', 'wellness'],
+    'body checkup': ['body checkup', 'preventive', 'wellness'],
+    'liver': ['lft', 'liver', 'bilirubin'],
+    'kidney': ['kft', 'kidney', 'creatinine'],
+    'jaundice': ['lft', 'liver', 'bilirubin'],
+    'dengue': ['dengue', 'ns1', 'platelet', 'fever'],
+    'malaria': ['malaria', 'smear', 'fever'],
+    'typhoid': ['typhoid', 'widal', 'fever']
   },
 
   stopWords: [
@@ -155,7 +56,6 @@ const PackagesPage = {
   async init() {
     try {
       this.setupEventListeners();
-      this.setupAutoSlideCarousel();
       this.updateCartBadgeUI();
       await this.loadPackagesCatalogue();
       this.checkUrlForPackageDetail();
@@ -164,47 +64,116 @@ const PackagesPage = {
     }
   },
 
+  getScdPackPriority(pkg, index = 0) {
+    if (!pkg) return 999;
+    const str = `${pkg.PackageCode || ''} ${pkg.PackageID || ''} ${pkg.PackageName || ''}`
+      .toLowerCase()
+      .replace(/[\s\-_]/g, '');
+
+    if (str.includes('scdpack001') || str.includes('scd001') || str.includes('scdp001') || str.includes('scdpack1')) return 1;
+    if (str.includes('scdpack002') || str.includes('scd002') || str.includes('scdp002') || str.includes('scdpack2')) return 2;
+    if (str.includes('scdpack003') || str.includes('scd003') || str.includes('scdp003') || str.includes('scdpack3') || pkg.IsRecommended) return 3;
+
+    if (index === 0) return 1;
+    if (index === 1) return 2;
+    if (index === 2) return 3;
+
+    return 999;
+  },
+
+  sortPackagesWithScdPriority(packages) {
+    if (!packages || !Array.isArray(packages)) return [];
+    return [...packages].sort((a, b) => {
+      const pA = this.getScdPackPriority(a, 999);
+      const pB = this.getScdPackPriority(b, 999);
+      if (pA !== pB) return pA - pB;
+      return 0;
+    });
+  },
+
   async loadPackagesCatalogue() {
     const container = document.getElementById('packages-catalogue-container');
     if (!container) return;
 
-    if (this.allPackages && this.allPackages.length > 0) {
-      this.renderPackages(this.allPackages);
-    }
-
     try {
-      const cached = await OfflineDB.getAll('packages');
-      if (cached && cached.length > 0) {
-        this.allPackages = cached;
-        this.filterAndRender();
-      } else {
-        this.allPackages = this.fallbackPackages;
-        this.renderPackages(this.allPackages);
+      if (typeof OfflineDB !== 'undefined') {
+        const cached = await OfflineDB.getAll('packages');
+        if (cached && cached.length > 0) {
+          this.allPackages = cached;
+          this.renderCategories();
+          this.filterAndRender();
+        } else {
+          container.innerHTML = '<p class="empty-msg">Fetching latest health packages from server...</p>';
+        }
       }
     } catch (e) {
-      console.warn('Cache load error:', e);
-      this.allPackages = this.fallbackPackages;
-      this.renderPackages(this.allPackages);
+      console.warn('Cache read error:', e);
+      container.innerHTML = '<p class="empty-msg">Loading packages from server...</p>';
     }
 
-    if (navigator.onLine && typeof OfflineSync !== 'undefined') {
+    if (navigator.onLine && typeof OfflineSync !== 'undefined' && typeof OfflineSync.syncPackages === 'function') {
       setTimeout(async () => {
         try {
           const fresh = await OfflineSync.syncPackages();
           if (fresh && fresh.length > 0) {
             this.allPackages = fresh;
+            this.renderCategories();
             this.filterAndRender();
           }
         } catch (err) {
           console.warn('Silent sync error:', err);
         }
-      }, 1000);
+      }, 600);
     }
   },
 
-  /**
-   * Multi-tenant Isolated Cart Reader
-   */
+  renderCategories() {
+    const track = document.getElementById('categoryFilterTrack');
+    if (!track || !this.allPackages || this.allPackages.length === 0) return;
+
+    const categories = ['All'];
+    this.allPackages.forEach(pkg => {
+      if (pkg.Category && typeof pkg.Category === 'string') {
+        const catTrimmed = pkg.Category.trim();
+        if (catTrimmed && !categories.some(c => c.toLowerCase() === catTrimmed.toLowerCase())) {
+          categories.push(catTrimmed);
+        }
+      }
+    });
+
+    track.innerHTML = categories.map(cat => {
+      const isAll = cat.toLowerCase() === 'all';
+      const isActive = isAll 
+        ? (this.currentCategory.toLowerCase() === 'all')
+        : (this.currentCategory.toLowerCase() === cat.toLowerCase());
+
+      const label = isAll ? 'All Packages' : cat;
+      return `<button class="cat-pill ${isActive ? 'active' : ''}" onclick="PackagesPage.selectCategory('${Utils.escapeHtml(cat)}')">${Utils.escapeHtml(label)}</button>`;
+    }).join('');
+  },
+
+  selectCategory(category) {
+    this.currentCategory = category || 'All';
+
+    document.querySelectorAll('.cat-pill').forEach(el => {
+      const text = el.textContent.trim().toLowerCase();
+      const target = this.currentCategory.toLowerCase();
+      const match = (target === 'all' && (text === 'all' || text === 'all packages')) || (text === target);
+      el.classList.toggle('active', match);
+    });
+
+    this.filterAndRender();
+  },
+
+  filterAndRender() {
+    let filtered = this.allPackages;
+    if (this.currentCategory && this.currentCategory.toLowerCase() !== 'all') {
+      filtered = filtered.filter(pkg => pkg.Category && pkg.Category.toLowerCase() === this.currentCategory.toLowerCase());
+    }
+    const prioritized = this.sortPackagesWithScdPriority(filtered);
+    this.renderPackages(prioritized);
+  },
+
   getCart() {
     if (typeof localStorage === 'undefined') return [];
     try {
@@ -246,14 +215,14 @@ const PackagesPage = {
 
   isItemInCart(packageId, packageCode, packageName) {
     const cart = this.getCart();
-    const sId = String(packageId || '');
-    const sCode = String(packageCode || '');
-    const sName = String(packageName || '');
+    const sId = String(packageId || '').trim();
+    const sCode = String(packageCode || '').trim();
+    const sName = String(packageName || '').trim();
 
     return cart.some(item => {
-      const iId = String(item.PackageID || item.id || item.TestID || item.PackageCode || item.code || '');
-      const iCode = String(item.PackageCode || item.code || item.TestCode || '');
-      const iName = String(item.PackageName || item.name || item.TestName || '');
+      const iId = String(item.PackageID || item.id || item.TestID || item.PackageCode || item.code || '').trim();
+      const iCode = String(item.PackageCode || item.code || item.TestCode || '').trim();
+      const iName = String(item.PackageName || item.name || item.TestName || '').trim();
       return (sId && iId === sId) || (sCode && iCode === sCode) || (sName && iName === sName);
     });
   },
@@ -294,10 +263,19 @@ const PackagesPage = {
     }, 550);
   },
 
-  /**
-   * Multi-tenant Isolated Toggle Cart Action
-   */
-  toggleCart(pkg, event) {
+  toggleCart(pkgOrId, event) {
+    if (event) {
+      event.stopPropagation();
+    }
+
+    let pkg = pkgOrId;
+    if (typeof pkgOrId === 'string') {
+      const cleanId = pkgOrId.trim();
+      pkg = this.allPackages.find(p => String(p.PackageID) === cleanId || String(p.PackageCode) === cleanId);
+    }
+
+    if (!pkg) return;
+
     const packageCode = pkg.PackageCode || 'PKG';
     const packageId = pkg.PackageID || packageCode;
     const packageName = pkg.PackageName || '';
@@ -305,14 +283,23 @@ const PackagesPage = {
     let cart = this.getCart();
     const isAdded = this.isItemInCart(packageId, packageCode, packageName);
 
-    // Conflict Check: Cart-il illadha Package add seiyumbothu validate seigirom
+    const pkgWithMeta = {
+      ...pkg,
+      id: packageId,
+      code: packageCode,
+      name: packageName,
+      type: 'package'
+    };
+
     if (!isAdded) {
-      const pkgWithMeta = { ...pkg, type: 'package' };
       if (typeof ConflictValidator !== 'undefined') {
         const conflict = ConflictValidator.checkConflict(pkgWithMeta, cart);
-        if (conflict.hasConflict) {
-          alert(conflict.reason);
-          if (typeof Utils !== 'undefined') Utils.showToast(conflict.reason, 'error');
+        if (conflict && conflict.hasConflict) {
+          if (typeof Utils !== 'undefined') {
+            Utils.showToast(conflict.reason, 'error');
+          } else {
+            alert(conflict.reason);
+          }
           return;
         }
       }
@@ -331,14 +318,13 @@ const PackagesPage = {
         return iId !== packageId && iCode !== packageCode && iName !== packageName;
       });
     } else {
-      cart.push({ ...pkg, type: 'package' });
+      cart.push(pkgWithMeta);
     }
 
     const cartStr = JSON.stringify(cart);
     localStorage.setItem('cart', cartStr);
     localStorage.setItem('selfcare_cart', cartStr);
 
-    // Multi-tenant user isolation key
     const activeUser = localStorage.getItem('selfcare_active_user');
     if (activeUser) {
       localStorage.setItem(`selfcare_cart_${activeUser}`, cartStr);
@@ -354,20 +340,6 @@ const PackagesPage = {
     }
 
     this.updateCartBadgeUI();
-    this.filterAndRender();
-  },
-
-  /**
-   * Category Filter Handler for UI Pills / Chips
-   */
-  selectCategory(category) {
-    this.currentCategory = category || 'All';
-
-    document.querySelectorAll('.cat-pill, .filter-chip').forEach(el => {
-      const match = el.textContent.trim().toLowerCase() === this.currentCategory.toLowerCase();
-      el.classList.toggle('active', match);
-    });
-
     this.filterAndRender();
   },
 
@@ -388,6 +360,11 @@ const PackagesPage = {
   },
 
   getPackageParameterCount(pkg) {
+    const backendCount = Number(pkg.ParametersCount);
+    if (!isNaN(backendCount) && backendCount > 0) {
+      return backendCount > 1 ? `${backendCount} Parameters` : '1 Parameter';
+    }
+
     const items = this.extractParametersList(pkg.Parameters || pkg.Description);
     const count = items.length;
     return count > 1 ? `${count} Parameters` : (count === 1 ? '1 Parameter' : 'Complete Panel');
@@ -410,7 +387,7 @@ const PackagesPage = {
       const duration = match ? match[0] : '10 - 12 Hours';
       return {
         isFasting: true,
-        badgeText: '⚠️ Fasting Required',
+        badgeText: '⚠️️ Fasting Required',
         cardText: 'Fasting',
         durationText: `${duration} overnight fasting is required (Water is permitted).`
       };
@@ -429,23 +406,39 @@ const PackagesPage = {
     if (!container) return;
 
     if (!packages || packages.length === 0) {
-      container.innerHTML = '<p class="empty-msg">No health packages found matching your symptoms or query.</p>';
+      container.innerHTML = '<p class="empty-msg">No health packages found. Please check your network or search term.</p>';
       return;
     }
 
-    container.innerHTML = packages.map(pkg => {
+    container.innerHTML = packages.map((pkg, idx) => {
       const packageCode = pkg.PackageCode || 'PKG';
       const packageId = pkg.PackageID || packageCode;
       const alreadyAdded = this.isItemInCart(packageId, packageCode, pkg.PackageName);
       const fastingInfo = this.getFastingDetails(pkg);
       const paramCount = this.getPackageParameterCount(pkg);
 
+      const priority = this.getScdPackPriority(pkg, idx);
+      let neonCardClass = '';
+      let neonBadgeHtml = '';
+
+      if (priority === 1) {
+        neonCardClass = 'neon-glowing-card neon-card-1';
+        neonBadgeHtml = '<div class="neon-recommended-badge neon-badge-1">⚡ ESSENTIAL</div>';
+      } else if (priority === 2) {
+        neonCardClass = 'neon-glowing-card neon-card-2';
+        neonBadgeHtml = '<div class="neon-recommended-badge neon-badge-2">🔥 POPULAR</div>';
+      } else if (priority === 3) {
+        neonCardClass = 'neon-glowing-card neon-card-3';
+        neonBadgeHtml = '<div class="neon-recommended-badge neon-badge-3">✨ RECOMMENDED</div>';
+      }
+
       const actionButton = alreadyAdded 
-        ? `<button class="book-btn added-btn" onclick='PackagesPage.toggleCart(${JSON.stringify(pkg)}, event)'>Remove</button>`
-        : `<button class="book-btn add-cart-btn" onclick='PackagesPage.toggleCart(${JSON.stringify(pkg)}, event)'>🛒 Add To Cart</button>`;
+        ? `<button type="button" class="book-btn added-btn" onclick="PackagesPage.toggleCart('${Utils.escapeHtml(packageId)}', event)">Remove</button>`
+        : `<button type="button" class="book-btn add-cart-btn" onclick="PackagesPage.toggleCart('${Utils.escapeHtml(packageId)}', event)">🛒 Add To Cart</button>`;
 
       return `
-        <div class="package-card glass-card animate-fade">
+        <div class="package-card glass-card animate-fade ${neonCardClass}">
+          ${neonBadgeHtml}
           <div class="package-card-top">
             <div class="package-card-header-row">
               <span class="package-code-tag">${Utils.escapeHtml(packageCode)}</span>
@@ -479,7 +472,7 @@ const PackagesPage = {
   },
 
   filterPackagesByQuery(query) {
-    if (!query) return this.allPackages;
+    if (!query) return this.sortPackagesWithScdPriority(this.allPackages);
     const cleanQuery = query.toLowerCase().trim();
 
     let symptomMatchedTargetTerms = [];
@@ -494,7 +487,7 @@ const PackagesPage = {
       .split(/\s+/)
       .filter(w => w.length > 2 && !this.stopWords.includes(w));
 
-    return this.allPackages.filter(pkg => {
+    const results = this.allPackages.filter(pkg => {
       const name = String(pkg.PackageName || '').toLowerCase();
       const code = String(pkg.PackageCode || '').toLowerCase();
       const category = String(pkg.Category || '').toLowerCase();
@@ -522,6 +515,8 @@ const PackagesPage = {
 
       return false;
     });
+
+    return this.sortPackagesWithScdPriority(results);
   },
 
   startVoiceSearch() {
@@ -564,7 +559,7 @@ const PackagesPage = {
           voiceBtn.innerHTML = '🔴';
         }
         if (typeof Utils !== 'undefined') {
-          Utils.showToast('🎙️ Listening... Speak health package or symptoms now', 'info');
+          Utils.showToast('🎙️️ Listening... Speak package or symptoms', 'info');
         }
       };
 
@@ -588,7 +583,7 @@ const PackagesPage = {
           if (event.error === 'not-allowed') {
             Utils.showToast('Microphone access denied. Please allow microphone in browser.', 'error');
           } else if (event.error === 'no-speech') {
-            Utils.showToast('No speech detected. Please tap mic and speak clearly.', 'info');
+            Utils.showToast('No speech detected. Please speak clearly.', 'info');
           } else {
             Utils.showToast(`Voice Search: ${event.error}`, 'error');
           }
@@ -612,13 +607,6 @@ const PackagesPage = {
         voiceBtn.innerHTML = '🎙️';
       }
     }
-  },
-
-  filterByKeyword(keyword) {
-    const searchInput = document.getElementById('packages-search-input');
-    if (searchInput) searchInput.value = keyword;
-    const filtered = this.filterPackagesByQuery(keyword);
-    this.renderPackages(filtered);
   },
 
   setupEventListeners() {
@@ -645,32 +633,11 @@ const PackagesPage = {
     });
   },
 
-  setupAutoSlideCarousel() {
-    const track = document.getElementById('singleSliderTrack');
-    if (track) {
-      let currentSlide = 0;
-      const totalSlides = track.children.length;
-      setInterval(() => {
-        currentSlide = (currentSlide + 1) % totalSlides;
-        track.style.transform = `translateX(-${currentSlide * 100}%)`;
-      }, 3200);
-    }
-  },
-
-  filterAndRender() {
-    let filtered = this.allPackages;
-    if (this.currentCategory && this.currentCategory !== 'All') {
-      filtered = filtered.filter(pkg => pkg.Category && pkg.Category.toLowerCase() === this.currentCategory.toLowerCase());
-    }
-    this.renderPackages(filtered);
-  },
-
   async showPackageDetails(packageId) {
     let pkg = this.allPackages.find(p => p.PackageID === packageId || p.PackageCode === packageId);
     if (!pkg && typeof OfflineDB !== 'undefined') {
       pkg = await OfflineDB.getById('packages', packageId);
     }
-    if (!pkg) pkg = this.fallbackPackages.find(p => p.PackageID === packageId || p.PackageCode === packageId);
     if (!pkg) return;
 
     const formattedParams = this.formatParameters(pkg);
@@ -679,8 +646,8 @@ const PackagesPage = {
     const alreadyAdded = this.isItemInCart(pkg.PackageID || pkg.PackageCode, pkg.PackageCode, pkg.PackageName);
 
     const actionBtn = alreadyAdded
-      ? `<button class="modal-action-btn remove-btn" onclick='PackagesPage.toggleCart(${JSON.stringify(pkg)}, event); PackagesPage.showPackageDetails("${packageId}");'>🗑️ Remove from Cart</button>`
-      : `<button class="modal-action-btn add-btn" onclick='PackagesPage.toggleCart(${JSON.stringify(pkg)}, event); PackagesPage.showPackageDetails("${packageId}");'>🛒 Add to Cart</button>`;
+      ? `<button class="modal-action-btn remove-btn" onclick="PackagesPage.toggleCart('${Utils.escapeHtml(packageId)}', event); PackagesPage.showPackageDetails('${Utils.escapeHtml(packageId)}');">🗑️ Remove from Cart</button>`
+      : `<button class="modal-action-btn add-btn" onclick="PackagesPage.toggleCart('${Utils.escapeHtml(packageId)}', event); PackagesPage.showPackageDetails('${Utils.escapeHtml(packageId)}');">🛒 Add to Cart</button>`;
 
     let modal = document.getElementById('package-detail-modal');
     if (!modal) {
@@ -766,7 +733,6 @@ document.addEventListener('DOMContentLoaded', () => {
   PackagesPage.init();
 });
 
-// Global Window Exposure
 if (typeof window !== 'undefined') {
   window.PackagesPage = PackagesPage;
 }

@@ -1,31 +1,40 @@
 /* file: assets/js/admin.js */
 /**
- * Selfcare Diagnostics - Master Admin Operating System Engine v8.5.0
- * Fully upgraded while maintaining strict 100% backwards compatibility:
- * - All existing IDs, methods, and Google Apps Script endpoints preserved.
- * - Home page focused exclusively on Revenue & Business Performance.
- * - Mobile-first drawer navigation engine with smooth gesture-friendly overlays.
- * - Automated Package-to-Test mapping, Social Media deep links, and Home Collection rate calculations.
+ * Selfcare Diagnostics - Master Admin Operating System Engine v8.6.0
+ * Features:
+ * - Live Bi-directional Google Sheets sync for 500+ Tests & Packages.
+ * - Auto-sanitization of TestID & PackageID to prevent IndexedDB keyPath crashes.
+ * - Instant zero-lag cache restore + background cloud fetch.
  */
 
 const AdminApp = {
   currentAssignBookingId: null,
   editingTestId: null,
   editingPackageId: null,
-  currentFinancialPeriod: 'month', // 'month' or 'all'
+  currentFinancialPeriod: 'month',
   currentChartPeriod: '7days',
   currentPackageMappingId: null,
 
   async init() {
     this.seedDefaultDataIfEmpty();
     this.initCurrentDateLabel();
-    await this.loadAllBookings();
 
-    // Render Home Revenue KPIs and SVG Chart
+    // 1. Instant 0ms cache render
+    this.renderHomeRevenueKPIs();
+    this.renderTests();
+    this.renderPackages();
+    this.renderBookingsTable();
+
+    // 2. Live Cloud Fetch from Google Sheets for Bookings, Tests & Packages
+    await Promise.all([
+      this.loadAllBookings(),
+      this.loadAllTests(),
+      this.loadAllPackages()
+    ]);
+
+    // 3. Re-render UI with fresh 500+ Tests and Packages from Sheets
     this.renderHomeRevenueKPIs();
     this.renderRevenueChart(this.currentChartPeriod);
-
-    // Render Core Operations
     this.renderFinancialLedger();
     this.renderBookingsTable();
     this.renderHomeCollectionsTable();
@@ -52,6 +61,105 @@ const AdminApp = {
         year: 'numeric'
       });
     }
+  },
+
+  /* =========================================================
+     LIVE TESTS & PACKAGES CLOUD SYNC ENGINE
+     ========================================================= */
+  async loadAllTests() {
+    let cloudTests = null;
+    if (navigator.onLine && typeof Api !== 'undefined') {
+      try {
+        if (typeof Api.request === 'function') {
+          cloudTests = await Api.request('getAdminTests', {}, false).catch(() => null);
+        }
+        if (!cloudTests || !Array.isArray(cloudTests) || cloudTests.length === 0) {
+          if (typeof Api.getTests === 'function') {
+            cloudTests = await Api.getTests();
+          }
+        }
+      } catch (err) {
+        console.warn('[Admin] Cloud tests fetch deferred:', err);
+      }
+    }
+
+    if (cloudTests && Array.isArray(cloudTests) && cloudTests.length > 0) {
+      const sanitized = cloudTests.map((t, idx) => {
+        const tid = String(t.TestID || t.TestCode || t.id || ('T' + String(idx + 1).padStart(4, '0'))).trim();
+        return {
+          ...t,
+          TestID: tid,
+          TestCode: t.TestCode || tid,
+          TestName: t.TestName || t.name || 'Diagnostic Test',
+          Category: t.Category || 'General',
+          SampleType: t.SampleType || 'Blood',
+          FastingRequired: t.FastingRequired || 'No',
+          MRP: Number(t.MRP || 0),
+          OfferPrice: Number(t.OfferPrice || t.price || 0),
+          B2BCost: Number(t.B2BCost || Math.round((t.OfferPrice || 0) * 0.35)),
+          Status: t.Status || 'Active'
+        };
+      });
+
+      localStorage.setItem('selfcare_tests_admin_db', JSON.stringify(sanitized));
+      this.syncPublicTestsCache(sanitized);
+
+      if (typeof OfflineDB !== 'undefined' && OfflineDB.putAll) {
+        await OfflineDB.putAll('tests', sanitized, true);
+        await OfflineDB.setMetadata('testsLastSync', new Date().toISOString());
+      }
+      return sanitized;
+    }
+
+    return JSON.parse(localStorage.getItem('selfcare_tests_admin_db') || '[]');
+  },
+
+  async loadAllPackages() {
+    let cloudPkgs = null;
+    if (navigator.onLine && typeof Api !== 'undefined') {
+      try {
+        if (typeof Api.request === 'function') {
+          cloudPkgs = await Api.request('getAdminPackages', {}, false).catch(() => null);
+        }
+        if (!cloudPkgs || !Array.isArray(cloudPkgs) || cloudPkgs.length === 0) {
+          if (typeof Api.getPackages === 'function') {
+            cloudPkgs = await Api.getPackages();
+          }
+        }
+      } catch (err) {
+        console.warn('[Admin] Cloud packages fetch deferred:', err);
+      }
+    }
+
+    if (cloudPkgs && Array.isArray(cloudPkgs) && cloudPkgs.length > 0) {
+      const sanitized = cloudPkgs.map((p, idx) => {
+        const pid = String(p.PackageID || p.PackageCode || p.id || ('PKG' + String(idx + 1).padStart(3, '0'))).trim();
+        return {
+          ...p,
+          PackageID: pid,
+          PackageCode: p.PackageCode || pid,
+          PackageName: p.PackageName || p.name || 'Health Package',
+          Category: p.Category || 'Preventive Care',
+          Parameters: p.Parameters || 'Complete Evaluation',
+          MRP: Number(p.MRP || 0),
+          OfferPrice: Number(p.OfferPrice || p.price || 0),
+          B2BCost: Number(p.B2BCost || Math.round((p.OfferPrice || 0) * 0.35)),
+          Status: p.Status || 'Active',
+          Featured: String(p.Featured || 'FALSE').toUpperCase()
+        };
+      });
+
+      localStorage.setItem('selfcare_packages_admin_db', JSON.stringify(sanitized));
+      this.syncPublicPackagesCache(sanitized);
+
+      if (typeof OfflineDB !== 'undefined' && OfflineDB.putAll) {
+        await OfflineDB.putAll('packages', sanitized, true);
+        await OfflineDB.setMetadata('packagesLastSync', new Date().toISOString());
+      }
+      return sanitized;
+    }
+
+    return JSON.parse(localStorage.getItem('selfcare_packages_admin_db') || '[]');
   },
 
   /* =========================================================
@@ -87,7 +195,6 @@ const AdminApp = {
     if (targetTab) targetTab.classList.add('active');
     if (targetNav) targetNav.classList.add('active');
 
-    // Trigger lazy rendering when navigating to specific tabs
     if (tabId === 'tab-home') {
       this.renderHomeRevenueKPIs();
       this.renderRevenueChart(this.currentChartPeriod);
@@ -95,6 +202,10 @@ const AdminApp = {
       this.renderFinancialLedger();
     } else if (tabId === 'tab-bookings') {
       this.renderBookingsTable();
+    } else if (tabId === 'tab-tests') {
+      this.renderTests();
+    } else if (tabId === 'tab-packages') {
+      this.renderPackages();
     } else if (tabId === 'tab-package-mapping') {
       this.initPackageMappingEngine();
     }
@@ -127,7 +238,6 @@ const AdminApp = {
       const bDateStr = bDate.toISOString().slice(0, 10);
       const rev = Number(b.totalAmount || b.finalAmount || 0);
 
-      // Compute MRP & B2B
       let orderMrp = 0, orderB2b = 0;
       let items = b.items;
       if (typeof items === 'string') {
@@ -155,20 +265,17 @@ const AdminApp = {
       if (orderMrp < rev) orderMrp = Math.round(rev * 1.45);
       if (orderB2b === 0) orderB2b = Math.round(rev * 0.35);
 
-      // Check Today
       if (bDateStr === todayStr) {
         todayRev += rev;
         todayMrp += orderMrp;
         todayOrders++;
       }
 
-      // Check 7 Days
       if (bDate >= sevenDaysAgo) {
         weekRev += rev;
         weekOrders++;
       }
 
-      // Check This Month
       if (bDate.getFullYear() === curYear && bDate.getMonth() === curMonth) {
         monthRev += rev;
         monthMrp += orderMrp;
@@ -176,7 +283,6 @@ const AdminApp = {
         monthOrders++;
       }
 
-      // Check Pending
       if (String(b.paymentStatus || '').toUpperCase() === 'PENDING') {
         pendingPayments += rev;
         pendingOrders++;
@@ -187,7 +293,6 @@ const AdminApp = {
     const profitMargin = monthRev > 0 ? ((monthProfit / monthRev) * 100).toFixed(1) : 0;
     const todaySavings = Math.max(0, todayMrp - todayRev);
 
-    // Update Home Page DOM
     this.safeSetText('kpi-today-revenue', `₹${todayRev.toLocaleString('en-IN')}`);
     this.safeSetText('kpi-today-orders-count', `${todayOrders} Orders Today`);
     this.safeSetText('kpi-week-revenue', `₹${weekRev.toLocaleString('en-IN')}`);
@@ -220,7 +325,6 @@ const AdminApp = {
     let dataPoints = [];
 
     if (period === 'today') {
-      // 4 Time slots for today
       labels = ['6-9 AM', '9-12 PM', '12-3 PM', '3-7 PM'];
       dataPoints = [0, 0, 0, 0];
       const todayStr = now.toISOString().slice(0, 10);
@@ -240,7 +344,6 @@ const AdminApp = {
         dataPoints.push(sum);
       }
     } else {
-      // 30 days grouped into 4 weeks
       labels = ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
       dataPoints = [0, 0, 0, 0];
       bookings.forEach((b, i) => {
@@ -248,7 +351,6 @@ const AdminApp = {
       });
     }
 
-    // Build Responsive Pure SVG Bar Chart
     const maxVal = Math.max(...dataPoints, 1000);
     const svgWidth = 800;
     const svgHeight = 220;
@@ -285,78 +387,7 @@ const AdminApp = {
     `;
   },
 
-  /* =========================================================
-     SEED INITIAL MOCK DATA (WITH B2B LAB COST PRIVACY)
-     ========================================================= */
   seedDefaultDataIfEmpty() {
-    if (!localStorage.getItem('selfcare_tests_admin_db')) {
-      const initialTests = [
-        {
-          TestID: "SCDT0001",
-          TestCode: "T0001",
-          TestName: "Complete Blood Count (CBC with ESR)",
-          Category: "Hematology",
-          SampleType: "EDTA Blood",
-          FastingRequired: "No",
-          Preparation: "Water intake permitted",
-          Parameters: "24 Vital Parameters",
-          TAT: "6 Hours",
-          MRP: 450,
-          OfferPrice: 250,
-          B2BCost: 90,
-          Status: "Active",
-          WhyDone: "Screen for anemia, leukemia, platelet disorders",
-          SearchKeywords: "cbc, blood, infection, hemoglobin",
-          UpdatedAt: new Date().toISOString()
-        },
-        {
-          TestID: "SCDT0012",
-          TestCode: "T0012",
-          TestName: "Lipid Profile Comprehensive",
-          Category: "Biochemistry",
-          SampleType: "Serum",
-          FastingRequired: "Yes (10-12 Hours)",
-          Preparation: "12 Hours overnight fasting mandatory",
-          Parameters: "8 Parameters (Cholesterol, Triglycerides, HDL, LDL)",
-          TAT: "8 Hours",
-          MRP: 600,
-          OfferPrice: 299,
-          B2BCost: 110,
-          Status: "Active",
-          WhyDone: "Evaluate heart and cardiovascular disease risk",
-          SearchKeywords: "lipid, cholesterol, heart, cardiac",
-          UpdatedAt: new Date().toISOString()
-        }
-      ];
-      localStorage.setItem('selfcare_tests_admin_db', JSON.stringify(initialTests));
-      this.syncPublicTestsCache(initialTests);
-    }
-
-    if (!localStorage.getItem('selfcare_packages_admin_db')) {
-      const initialPackages = [
-        {
-          PackageID: "PKG001",
-          PackageCode: "PKG001",
-          PackageName: "Selfcare Basic Health Panel",
-          Category: "Preventive Health",
-          Description: "Essential screening covering CBC, Fasting Blood Sugar, Lipid Profile, and Urine Routine.",
-          TestIDs: "SCDT0001, SCDT0012",
-          Parameters: "CBC, FBS, Lipid Profile, Urine Routine (48 Parameters)",
-          Preparation: "10-12 hours overnight fasting mandatory.",
-          FastingRequired: "Yes (10-12 Hours Fasting)",
-          SampleType: "Blood & Urine",
-          TAT: "24 Hours",
-          MRP: 4000,
-          OfferPrice: 1299,
-          B2BCost: 450,
-          Status: "Active",
-          Featured: "TRUE"
-        }
-      ];
-      localStorage.setItem('selfcare_packages_admin_db', JSON.stringify(initialPackages));
-      this.syncPublicPackagesCache(initialPackages);
-    }
-
     if (!localStorage.getItem('selfcare_technicians')) {
       const initialTechs = [
         { id: "SCDTECH001", name: "Ramesh Phlebotomist", phone: "9840123456", zone: "T. Nagar, Kodambakkam", pass: "tech@123", status: "Active" },
@@ -446,7 +477,7 @@ const AdminApp = {
     const bookings = filteredList || JSON.parse(localStorage.getItem('selfcare_bookings_db') || '[]');
 
     if (bookings.length === 0) {
-      tableBody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:24px; color:#64748B;">No cart bookings recorded. Orders placed via app will appear here instantly.</td></tr>`;
+      tableBody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:24px; color:#64748B;">No bookings recorded.</td></tr>`;
       return;
     }
 
@@ -515,9 +546,6 @@ const AdminApp = {
     this.renderBookingsTable(filtered);
   },
 
-  /* =========================================================
-     2. HOME COLLECTIONS & DISTANCE CHARGE CALCULATOR
-     ========================================================= */
   calculateDeliveryRate() {
     const dist = parseFloat(document.getElementById('calc-distance-input').value) || 0;
     const visitType = document.getElementById('calc-visit-type').value;
@@ -562,9 +590,6 @@ const AdminApp = {
     `).join('');
   },
 
-  /* =========================================================
-     3. FINANCIAL PROFIT LEDGER (PRESERVES EXISTING LOGIC)
-     ========================================================= */
   setFinancialPeriod(period) {
     this.currentFinancialPeriod = period;
     document.getElementById('btn-period-month').classList.toggle('active', period === 'month');
@@ -677,9 +702,6 @@ const AdminApp = {
     `).join('');
   },
 
-  /* =========================================================
-     4. TECHNICIAN DISPATCH & BROADCAST
-     ========================================================= */
   openAssignModal(bookingId) {
     this.currentAssignBookingId = bookingId;
     const bookings = JSON.parse(localStorage.getItem('selfcare_bookings_db') || '[]');
@@ -813,7 +835,7 @@ const AdminApp = {
   },
 
   /* =========================================================
-     5. TESTS FULL CRUD (15 BACKEND COLUMNS + B2B PRIVACY)
+     5. TESTS FULL CRUD (LIVE SHEETS SYNC)
      ========================================================= */
   renderTests() {
     const tbody = document.getElementById('tests-table-body');
@@ -824,10 +846,15 @@ const AdminApp = {
     const cat = document.getElementById('test-category-filter')?.value || '';
 
     if (query) {
-      tests = tests.filter(t => (t.TestName + t.TestCode).toLowerCase().includes(query));
+      tests = tests.filter(t => (t.TestName + t.TestCode + t.TestID).toLowerCase().includes(query));
     }
     if (cat) {
       tests = tests.filter(t => t.Category === cat);
+    }
+
+    if (tests.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="12" style="text-align:center; padding:20px; color:#64748B;">No diagnostic tests found. Tap "Sync with Google Sheets" to fetch.</td></tr>`;
+      return;
     }
 
     tbody.innerHTML = tests.map(t => {
@@ -844,7 +871,7 @@ const AdminApp = {
           <td><strong class="green-text">₹${t.OfferPrice}</strong></td>
           <td><span class="b2b-cell-text">₹${t.B2BCost || 0}</span></td>
           <td><strong style="color:#045D49;">₹${profit}</strong></td>
-          <td><span class="status-pill status-assigned">${t.Status}</span></td>
+          <td><span class="status-pill status-assigned">${t.Status || 'Active'}</span></td>
           <td>
             <button class="btn-cancel" style="padding:4px 8px; font-size:11px;" onclick="AdminApp.openTestModal('edit', '${t.TestID}')">Edit</button>
             <button class="btn-cancel" style="padding:4px 8px; font-size:11px; color:#DC2626;" onclick="AdminApp.deleteTest('${t.TestID}')">Del</button>
@@ -861,7 +888,7 @@ const AdminApp = {
     if (action === 'add') {
       this.editingTestId = null;
       document.getElementById('test-modal-title').innerText = '+ Add New Diagnostic Test';
-      document.getElementById('t-TestID').value = 'SCDT_' + Date.now().toString().slice(-4);
+      document.getElementById('t-TestID').value = 'T' + Date.now().toString().slice(-4);
       document.getElementById('t-TestID').readOnly = false;
     } else {
       this.editingTestId = testId;
@@ -924,13 +951,17 @@ const AdminApp = {
     localStorage.setItem('selfcare_tests_admin_db', JSON.stringify(tests));
     this.syncPublicTestsCache(tests);
 
+    if (typeof OfflineDB !== 'undefined' && OfflineDB.putAll) {
+      OfflineDB.putAll('tests', tests, true);
+    }
+
     if (navigator.onLine && typeof Api !== 'undefined' && Api.request) {
       Api.request('saveTest', record, false).catch(err => console.warn('Test backend write deferred:', err));
     }
 
     this.closeModal('test-edit-modal');
     this.renderTests();
-    this.showToast(`Test "${record.TestName}" saved!`);
+    this.showToast(`Test "${record.TestName}" saved live!`);
   },
 
   deleteTest(testId) {
@@ -939,6 +970,10 @@ const AdminApp = {
     tests = tests.filter(t => t.TestID !== testId);
     localStorage.setItem('selfcare_tests_admin_db', JSON.stringify(tests));
     this.syncPublicTestsCache(tests);
+
+    if (typeof OfflineDB !== 'undefined' && OfflineDB.putAll) {
+      OfflineDB.putAll('tests', tests, true);
+    }
 
     if (navigator.onLine && typeof Api !== 'undefined' && Api.request) {
       Api.request('deleteTest', { testId }, false).catch(() => {});
@@ -949,7 +984,7 @@ const AdminApp = {
   },
 
   /* =========================================================
-     6. HEALTH PACKAGES CRUD
+     6. HEALTH PACKAGES CRUD (LIVE SHEETS SYNC)
      ========================================================= */
   renderPackages() {
     const tbody = document.getElementById('packages-table-body');
@@ -959,7 +994,12 @@ const AdminApp = {
     const query = (document.getElementById('package-search-filter')?.value || '').toLowerCase();
 
     if (query) {
-      packages = packages.filter(p => (p.PackageName + p.PackageCode).toLowerCase().includes(query));
+      packages = packages.filter(p => (p.PackageName + p.PackageCode + p.PackageID).toLowerCase().includes(query));
+    }
+
+    if (packages.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="12" style="text-align:center; padding:20px; color:#64748B;">No health packages found. Tap "Sync with Google Sheets" to fetch.</td></tr>`;
+      return;
     }
 
     tbody.innerHTML = packages.map(p => {
@@ -1057,13 +1097,17 @@ const AdminApp = {
     localStorage.setItem('selfcare_packages_admin_db', JSON.stringify(packages));
     this.syncPublicPackagesCache(packages);
 
+    if (typeof OfflineDB !== 'undefined' && OfflineDB.putAll) {
+      OfflineDB.putAll('packages', packages, true);
+    }
+
     if (navigator.onLine && typeof Api !== 'undefined' && Api.request) {
       Api.request('savePackage', record, false).catch(err => console.warn('Package sync deferred:', err));
     }
 
     this.closeModal('package-edit-modal');
     this.renderPackages();
-    this.showToast(`Package "${record.PackageName}" saved!`);
+    this.showToast(`Package "${record.PackageName}" saved live!`);
   },
 
   deletePackage(packageId) {
@@ -1072,6 +1116,10 @@ const AdminApp = {
     packages = packages.filter(p => p.PackageID !== packageId);
     localStorage.setItem('selfcare_packages_admin_db', JSON.stringify(packages));
     this.syncPublicPackagesCache(packages);
+
+    if (typeof OfflineDB !== 'undefined' && OfflineDB.putAll) {
+      OfflineDB.putAll('packages', packages, true);
+    }
 
     if (navigator.onLine && typeof Api !== 'undefined' && Api.request) {
       Api.request('deletePackage', { packageId }, false).catch(() => {});
@@ -1110,40 +1158,45 @@ const AdminApp = {
 
     const bundledIds = (pkg.TestIDs || '').split(',').map(s => s.trim()).filter(Boolean);
 
-    // Render Available Tests
     const availContainer = document.getElementById('map-available-tests-list');
-    availContainer.innerHTML = tests
-      .filter(t => !bundledIds.includes(t.TestID))
-      .map(t => `
-        <label class="mapping-item">
-          <input type="checkbox" value="${t.TestID}" class="map-avail-chk">
-          <span><strong>${t.TestCode}</strong> - ${t.TestName} (₹${t.OfferPrice})</span>
-        </label>
-      `).join('');
+    if (availContainer) {
+      availContainer.innerHTML = tests
+        .filter(t => !bundledIds.includes(t.TestID))
+        .map(t => `
+          <label class="mapping-item">
+            <input type="checkbox" value="${t.TestID}" class="map-avail-chk">
+            <span><strong>${t.TestCode}</strong> - ${t.TestName} (₹${t.OfferPrice})</span>
+          </label>
+        `).join('');
+    }
 
-    // Render Bundled Tests
     const bundledContainer = document.getElementById('map-bundled-tests-list');
     let totalMrp = 0, totalB2b = 0;
 
-    bundledContainer.innerHTML = bundledIds.map(tid => {
-      const match = tests.find(t => t.TestID === tid);
-      if (match) {
-        totalMrp += Number(match.MRP || 0);
-        totalB2b += Number(match.B2BCost || 0);
-      }
-      return `
-        <div class="mapping-item" style="justify-content:space-between;">
-          <span><strong>${tid}</strong>: ${match ? match.TestName : 'Test item'}</span>
-          <button class="btn-cancel" style="padding:2px 8px; font-size:10px; color:#DC2626;" onclick="AdminApp.removeSingleTestFromPackage('${tid}')">✕</button>
-        </div>
-      `;
-    }).join('');
+    if (bundledContainer) {
+      bundledContainer.innerHTML = bundledIds.map(tid => {
+        const match = tests.find(t => t.TestID === tid);
+        if (match) {
+          totalMrp += Number(match.MRP || 0);
+          totalB2b += Number(match.B2BCost || 0);
+        }
+        return `
+          <div class="mapping-item" style="justify-content:space-between;">
+            <span><strong>${tid}</strong>: ${match ? match.TestName : 'Test item'}</span>
+            <button class="btn-cancel" style="padding:2px 8px; font-size:10px; color:#DC2626;" onclick="AdminApp.removeSingleTestFromPackage('${tid}')">✕</button>
+          </div>
+        `;
+      }).join('');
+    }
 
-    document.getElementById('map-selection-summary').innerHTML = `
-      <span>Tests: <strong>${bundledIds.length}</strong></span> | 
-      <span>Total MRP: <strong>₹${totalMrp}</strong></span> | 
-      <span>Outsourced B2B: <strong>₹${totalB2b}</strong></span>
-    `;
+    const summaryEl = document.getElementById('map-selection-summary');
+    if (summaryEl) {
+      summaryEl.innerHTML = `
+        <span>Tests: <strong>${bundledIds.length}</strong></span> | 
+        <span>Total MRP: <strong>₹${totalMrp}</strong></span> | 
+        <span>Outsourced B2B: <strong>₹${totalB2b}</strong></span>
+      `;
+    }
   },
 
   addSelectedTestsToPackage() {
@@ -1536,9 +1589,6 @@ const AdminApp = {
     `).join('');
   },
 
-  /* =========================================================
-     GLOBAL CATEGORIZED SEARCH
-     ========================================================= */
   handleGlobalSearch(query) {
     const q = (query || '').trim().toLowerCase();
     const dropdown = document.getElementById('global-search-results-dropdown');
@@ -1641,9 +1691,6 @@ const AdminApp = {
     if (clearBtn) clearBtn.style.display = 'none';
   },
 
-  /* =========================================================
-     UTILITY METHODS
-     ========================================================= */
   safeSetText(id, text) {
     const el = document.getElementById(id);
     if (el) el.textContent = text;
@@ -1668,12 +1715,20 @@ const AdminApp = {
   },
 
   async forceSyncCloud() {
-    this.showToast('Syncing with Google Sheets...');
-    await this.loadAllBookings();
+    this.showToast('Syncing all 500+ tests and packages from Sheets...');
+    await Promise.all([
+      this.loadAllBookings(),
+      this.loadAllTests(),
+      this.loadAllPackages()
+    ]);
     this.renderHomeRevenueKPIs();
     this.renderFinancialLedger();
     this.renderBookingsTable();
-    this.showToast('Synchronization complete ✓');
+    this.renderTests();
+    this.renderPackages();
+    this.initPackageMappingEngine();
+    this.populateSocialItemSelect();
+    this.showToast('Sheets Synchronization Complete ✓');
   },
 
   logout() {

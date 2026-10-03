@@ -1,12 +1,10 @@
 /* file: assets/js/customer.js */
 /**
- * Selfcare Diagnostics - Customer Dashboard JS v7.8.0 (Zero-Fail Engine)
- * Features:
- * 1. Dual-Layer Conflict Validation Engine in Cart and Prescription flow.
- * 2. Strictly Photo/Image Prescription Compression (1000px max, JPEG 0.65, No PDF).
- * 3. Multi-tenant Isolated Cart Vault Synchronization (selfcare_cart_${activeUser}).
- * 4. High-Confidence vs Review Categorization for prescription tests.
- * 5. Full Cart Synchronization & 3D Parameter Modals.
+ * Selfcare Diagnostics - Customer Dashboard JS v8.5.0
+ * Fully Fixed:
+ * 1. Safe ID-based Cart Toggle (Eliminated JSON.stringify single-quote syntax break).
+ * 2. Auto-attachment of type: 'package' for proper Conflict Validation & Cart storage.
+ * 3. 3-Tier Neon Glow Effects with priority fallback for Top 3 packages.
  */
 
 const CustomerDashboard = {
@@ -16,103 +14,6 @@ const CustomerDashboard = {
   currentUnmatchedItems: [],
   currentPackageSuggestions: [],
   currentPrescriptionId: null,
-
-  fallbackPopularPackages: [
-    {
-      PackageID: 'PKG001',
-      PackageCode: 'PKG001',
-      PackageName: 'Selfcare Basic Health',
-      Category: 'Preventive Health',
-      SampleType: 'Blood & Urine',
-      TAT: '24 Hours',
-      FastingRequired: true,
-      Preparation: '10 - 12 hours overnight fasting is mandatory.',
-      MRP: 4000,
-      OfferPrice: 1299,
-      Description: 'Essential screening covering CBC, Fasting Blood Sugar, Lipid Profile, and Urine Routine.',
-      Parameters: 'CBC, FBS, Lipid Profile, Urine Routine'
-    },
-    {
-      PackageID: 'PKG002',
-      PackageCode: 'PKG002',
-      PackageName: 'Selfcare Premium Health',
-      Category: 'Comprehensive Health',
-      SampleType: 'Blood & Urine',
-      TAT: '24 Hours',
-      FastingRequired: true,
-      Preparation: '10 - 12 hours overnight fasting is mandatory.',
-      MRP: 7000,
-      OfferPrice: 1999,
-      Description: 'Broader preventive screening panel covering LFT, KFT, Thyroid, CBC, and Urine markers.',
-      Parameters: 'CBC, LFT, KFT, Lipid Profile, Thyroid TSH, Fasting Blood Sugar, Urine Routine'
-    },
-    {
-      PackageID: 'PKG003',
-      PackageCode: 'PKG003',
-      PackageName: 'Selfcare Elite Health',
-      Category: 'Executive Wellness',
-      SampleType: 'Blood & Urine',
-      TAT: '24 Hours',
-      FastingRequired: true,
-      Preparation: '12 hours overnight fasting required.',
-      MRP: 9000,
-      OfferPrice: 2999,
-      Description: 'Comprehensive executive full body checkup panel including vitamins, cardiac risk markers, and organ panels.',
-      Parameters: 'Complete Hemogram, Vitamin D3, Vitamin B12, HbA1c, Lipid Profile, LFT, KFT, Thyroid Profile'
-    },
-    {
-      PackageID: 'PKG010',
-      PackageCode: 'PKG010',
-      PackageName: 'Fever Advanced Panel',
-      Category: 'Fever Health',
-      SampleType: 'Blood',
-      TAT: '24 Hours',
-      FastingRequired: false,
-      MRP: 1500,
-      OfferPrice: 799,
-      Description: 'Malaria Antigen, Widal, CBC, ESR, and CRP.',
-      Parameters: 'CBC, ESR, CRP, Malaria Antigen, Widal'
-    },
-    {
-      PackageID: 'PKG011',
-      PackageCode: 'PKG011',
-      PackageName: 'Dengue Profile',
-      Category: 'Fever Health',
-      SampleType: 'Blood',
-      TAT: '24 Hours',
-      FastingRequired: false,
-      MRP: 1000,
-      OfferPrice: 499,
-      Description: 'Dengue NS1 Antigen, Dengue IgM, Dengue IgG.',
-      Parameters: 'Dengue NS1, Dengue IgM, Dengue IgG'
-    },
-    {
-      PackageID: 'PKG012',
-      PackageCode: 'PKG012',
-      PackageName: 'Dengue + Malaria Screen',
-      Category: 'Fever Health',
-      SampleType: 'Blood',
-      TAT: '24 Hours',
-      FastingRequired: false,
-      MRP: 1300,
-      OfferPrice: 699,
-      Description: 'Dengue NS1, IgM, IgG and Malaria Antigen.',
-      Parameters: 'Dengue NS1, Dengue IgM, Dengue IgG, Malaria Antigen'
-    },
-    {
-      PackageID: 'PKG013',
-      PackageCode: 'PKG013',
-      PackageName: 'Typhoid Screening (Widal)',
-      Category: 'Fever Health',
-      SampleType: 'Blood',
-      TAT: '24 Hours',
-      FastingRequired: false,
-      MRP: 500,
-      OfferPrice: 299,
-      Description: 'Widal Slide Agglutination & Typhoid IgM screen.',
-      Parameters: 'Widal Test, Typhoid IgM'
-    }
-  ],
 
   fallbackTests: [
     { TestID: 'SCDT0001', TestCode: 'T0001', TestName: 'CBC (Complete Blood Count)', OfferPrice: 250, MRP: 450 },
@@ -147,42 +48,74 @@ const CustomerDashboard = {
     }
   },
 
+  getScdPackPriority(pkg, index = 0) {
+    if (!pkg) return 999;
+    const str = `${pkg.PackageCode || ''} ${pkg.PackageID || ''} ${pkg.PackageName || ''}`
+      .toLowerCase()
+      .replace(/[\s\-_]/g, '');
+
+    if (str.includes('scdpack001') || str.includes('scd001') || str.includes('scdp001') || str.includes('scdpack1')) return 1;
+    if (str.includes('scdpack002') || str.includes('scd002') || str.includes('scdp002') || str.includes('scdpack2')) return 2;
+    if (str.includes('scdpack003') || str.includes('scd003') || str.includes('scdp003') || str.includes('scdpack3') || pkg.IsRecommended) return 3;
+
+    if (index === 0) return 1;
+    if (index === 1) return 2;
+    if (index === 2) return 3;
+
+    return 999;
+  },
+
+  sortPackagesWithScdPriority(packages) {
+    if (!packages || !Array.isArray(packages)) return [];
+    return [...packages].sort((a, b) => {
+      const pA = this.getScdPackPriority(a, 999);
+      const pB = this.getScdPackPriority(b, 999);
+      if (pA !== pB) return pA - pB;
+      return 0;
+    });
+  },
+
   async loadLocalCatalogue() {
+    const container = document.getElementById('popular-packages-container');
     try {
-      const dbTests = await OfflineDB.getAll('tests');
-      this.allTests = (dbTests && dbTests.length > 0) ? dbTests : this.fallbackTests;
-      
-      const localPkgs = await OfflineDB.getAll('packages');
-      this.allPackages = (localPkgs && localPkgs.length > 0) ? localPkgs : this.fallbackPopularPackages;
-      
-      this.renderPopularPackages();
+      if (typeof OfflineDB !== 'undefined') {
+        const dbTests = await OfflineDB.getAll('tests');
+        this.allTests = (dbTests && dbTests.length > 0) ? dbTests : this.fallbackTests;
+        
+        const localPkgs = await OfflineDB.getAll('packages');
+        if (localPkgs && localPkgs.length > 0) {
+          this.allPackages = localPkgs;
+          this.renderPopularPackages();
+        } else if (container) {
+          container.innerHTML = '<p class="empty-msg" style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 20px;">Fetching popular packages from server...</p>';
+        }
+      }
     } catch (e) {
       console.warn('Local cache read error:', e);
       this.allTests = this.fallbackTests;
-      this.allPackages = this.fallbackPopularPackages;
-      this.renderPopularPackages();
     }
 
-    if (navigator.onLine) {
+    if (navigator.onLine && typeof OfflineSync !== 'undefined') {
       setTimeout(async () => {
         try {
-          const freshTests = await OfflineSync.syncTests();
-          const freshPkgs = await OfflineSync.syncPackages();
-          if (freshTests && freshTests.length > 0) this.allTests = freshTests;
-          if (freshPkgs && freshPkgs.length > 0) {
-            this.allPackages = freshPkgs;
-            this.renderPopularPackages();
+          if (typeof OfflineSync.syncTests === 'function') {
+            const freshTests = await OfflineSync.syncTests();
+            if (freshTests && freshTests.length > 0) this.allTests = freshTests;
+          }
+          if (typeof OfflineSync.syncPackages === 'function') {
+            const freshPkgs = await OfflineSync.syncPackages();
+            if (freshPkgs && freshPkgs.length > 0) {
+              this.allPackages = freshPkgs;
+              this.renderPopularPackages();
+            }
           }
         } catch (err) {
           console.warn('Background sync error:', err);
         }
-      }, 1200);
+      }, 600);
     }
   },
 
-  /**
-   * Multi-tenant Isolated Cart Reader
-   */
   getCart() {
     if (typeof localStorage === 'undefined') return [];
     try {
@@ -207,9 +140,6 @@ const CustomerDashboard = {
     return [];
   },
 
-  /**
-   * Multi-tenant Isolated Cart Storage
-   */
   saveCartStorage(cart) {
     if (typeof localStorage !== 'undefined') {
       const cartStr = JSON.stringify(cart);
@@ -250,14 +180,14 @@ const CustomerDashboard = {
 
   isItemInCart(itemId, itemCode, itemName) {
     const cart = this.getCart();
-    const sId = String(itemId || '');
-    const sCode = String(itemCode || '');
-    const sName = String(itemName || '');
+    const sId = String(itemId || '').trim();
+    const sCode = String(itemCode || '').trim();
+    const sName = String(itemName || '').trim();
 
     return cart.some(item => {
-      const iId = String(item.TestID || item.PackageID || item.id || item.TestCode || item.PackageCode || item.code || '');
-      const iCode = String(item.TestCode || item.PackageCode || item.code || '');
-      const iName = String(item.TestName || item.PackageName || item.name || '');
+      const iId = String(item.TestID || item.PackageID || item.id || item.TestCode || item.PackageCode || item.code || '').trim();
+      const iCode = String(item.TestCode || item.PackageCode || item.code || '').trim();
+      const iName = String(item.TestName || item.PackageName || item.name || '').trim();
       return (sId && iId === sId) || (sCode && iCode === sCode) || (sName && iName === sName);
     });
   },
@@ -298,22 +228,57 @@ const CustomerDashboard = {
     }, 550);
   },
 
-  toggleCart(item, event) {
-    const itemId = String(item.TestID || item.PackageID || item.TestCode || item.PackageCode || item.id || '');
-    const itemCode = String(item.TestCode || item.PackageCode || item.code || '');
-    const itemName = String(item.TestName || item.PackageName || item.name || '');
+  /**
+   * Safe Toggle Cart: Handles both string ID and full objects.
+   * Automatically guarantees type: 'package' or 'test'.
+   */
+  toggleCart(itemOrId, event) {
+    if (event) {
+      event.stopPropagation();
+    }
+
+    let item = itemOrId;
+    if (typeof itemOrId === 'string') {
+      const cleanId = itemOrId.trim();
+      item = this.allPackages.find(p => String(p.PackageID) === cleanId || String(p.PackageCode) === cleanId)
+          || this.allTests.find(t => String(t.TestID) === cleanId || String(t.TestCode) === cleanId);
+    }
+
+    if (!item) {
+      console.warn('Item not found for cart toggle:', itemOrId);
+      return;
+    }
+
+    const itemId = String(item.PackageID || item.TestID || item.PackageCode || item.TestCode || item.id || '');
+    const itemCode = String(item.PackageCode || item.TestCode || item.code || '');
+    const itemName = String(item.PackageName || item.TestName || item.name || '');
     
     let cart = this.getCart();
     const isAdded = this.isItemInCart(itemId, itemCode, itemName);
 
-    // Conflict Check
+    // Guarantee proper item metadata
+    const itemWithMeta = {
+      ...item,
+      id: itemId,
+      code: itemCode,
+      name: itemName,
+      type: (item.PackageID || item.PackageCode || !item.TestID) ? 'package' : 'test'
+    };
+
     if (!isAdded) {
       if (typeof ConflictValidator !== 'undefined') {
-        const conflict = ConflictValidator.checkConflict(item, cart);
-        if (conflict.hasConflict) {
-          alert(conflict.reason);
-          if (typeof Utils !== 'undefined') Utils.showToast(conflict.reason, 'error');
-          return;
+        try {
+          const conflict = ConflictValidator.checkConflict(itemWithMeta, cart);
+          if (conflict && conflict.hasConflict) {
+            if (typeof Utils !== 'undefined') {
+              Utils.showToast(conflict.reason, 'error');
+            } else {
+              alert(conflict.reason);
+            }
+            return;
+          }
+        } catch (cvErr) {
+          console.warn('Conflict check bypass on non-fatal exception:', cvErr);
         }
       }
     }
@@ -325,13 +290,13 @@ const CustomerDashboard = {
 
     if (isAdded) {
       cart = cart.filter(i => {
-        const iId = String(i.TestID || i.PackageID || i.id || i.TestCode || i.PackageCode || i.code || '');
-        const iCode = String(i.TestCode || i.PackageCode || i.code || '');
-        const iName = String(i.TestName || i.PackageName || item.name || '');
+        const iId = String(i.PackageID || i.TestID || i.id || i.PackageCode || i.TestCode || i.code || '');
+        const iCode = String(i.PackageCode || i.TestCode || i.code || '');
+        const iName = String(i.PackageName || i.TestName || i.name || '');
         return iId !== itemId && iCode !== itemCode && iName !== itemName;
       });
     } else {
-      cart.push(item);
+      cart.push(itemWithMeta);
     }
 
     this.saveCartStorage(cart);
@@ -356,6 +321,11 @@ const CustomerDashboard = {
   },
 
   getPackageParameterCount(pkg) {
+    const backendCount = Number(pkg.ParametersCount);
+    if (!isNaN(backendCount) && backendCount > 0) {
+      return backendCount > 1 ? `${backendCount} Parameters` : '1 Parameter';
+    }
+
     const items = this.extractParametersList(pkg.Parameters || pkg.Description);
     const count = items.length;
     return count > 1 ? `${count} Parameters` : (count === 1 ? '1 Parameter' : 'Complete Panel');
@@ -392,25 +362,50 @@ const CustomerDashboard = {
     }
   },
 
+  /**
+   * Renders the popular packages with click-safe ID binding.
+   */
   renderPopularPackages() {
     const container = document.getElementById('popular-packages-container');
     if (!container) return;
 
-    const source = (this.allPackages && this.allPackages.length > 0) ? this.allPackages : this.fallbackPopularPackages;
+    if (!this.allPackages || this.allPackages.length === 0) {
+      container.innerHTML = '<p class="empty-msg" style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 20px;">Fetching popular packages from server...</p>';
+      return;
+    }
 
-    container.innerHTML = source.slice(0, 4).map(pkg => {
+    const sortedPackages = this.sortPackagesWithScdPriority(this.allPackages);
+
+    container.innerHTML = sortedPackages.slice(0, 4).map((pkg, idx) => {
       const pkgCode = pkg.PackageCode || 'PKG';
       const pkgId = pkg.PackageID || pkgCode;
       const alreadyAdded = this.isItemInCart(pkgId, pkgCode, pkg.PackageName);
       const fastingInfo = this.getFastingDetails(pkg);
       const paramCount = this.getPackageParameterCount(pkg);
 
+      const priority = this.getScdPackPriority(pkg, idx);
+      let neonCardClass = '';
+      let neonBadgeHtml = '';
+
+      if (priority === 1) {
+        neonCardClass = 'neon-glowing-card neon-card-1';
+        neonBadgeHtml = '<div class="neon-recommended-badge neon-badge-1">⚡ ESSENTIAL</div>';
+      } else if (priority === 2) {
+        neonCardClass = 'neon-glowing-card neon-card-2';
+        neonBadgeHtml = '<div class="neon-recommended-badge neon-badge-2">🔥 POPULAR</div>';
+      } else if (priority === 3) {
+        neonCardClass = 'neon-glowing-card neon-card-3';
+        neonBadgeHtml = '<div class="neon-recommended-badge neon-badge-3">✨ RECOMMENDED</div>';
+      }
+
+      // Uses clean pkgId string instead of JSON.stringify to avoid syntax errors
       const actionButton = alreadyAdded 
-        ? `<button class="book-btn added-btn" onclick='CustomerDashboard.toggleCart(${JSON.stringify(pkg)}, event)'>Remove</button>`
-        : `<button class="book-btn add-cart-btn" onclick='CustomerDashboard.toggleCart(${JSON.stringify(pkg)}, event)'>🛒 Add To Cart</button>`;
+        ? `<button type="button" class="book-btn added-btn" onclick="CustomerDashboard.toggleCart('${Utils.escapeHtml(pkgId)}', event)">Remove</button>`
+        : `<button type="button" class="book-btn add-cart-btn" onclick="CustomerDashboard.toggleCart('${Utils.escapeHtml(pkgId)}', event)">🛒 Add To Cart</button>`;
 
       return `
-        <div class="test-card glass-card animate-fade">
+        <div class="test-card glass-card animate-fade ${neonCardClass}" style="position: relative;">
+          ${neonBadgeHtml}
           <div class="test-card-top">
             <div class="test-card-header-row">
               <span class="test-code-tag">${Utils.escapeHtml(pkgCode)}</span>
@@ -445,7 +440,6 @@ const CustomerDashboard = {
 
   showPackageDetails(pkgId) {
     let pkg = this.allPackages.find(p => p.PackageID === pkgId || p.PackageCode === pkgId);
-    if (!pkg) pkg = this.fallbackPopularPackages.find(p => p.PackageID === pkgId || p.PackageCode === pkgId);
     if (!pkg) return;
 
     const formattedParams = this.formatParameters(pkg);
@@ -454,8 +448,8 @@ const CustomerDashboard = {
     const alreadyAdded = this.isItemInCart(pkg.PackageID || pkg.PackageCode, pkg.PackageCode, pkg.PackageName);
 
     const actionBtn = alreadyAdded
-      ? `<button class="modal-action-btn remove-btn" onclick='CustomerDashboard.toggleCart(${JSON.stringify(pkg)}, event); CustomerDashboard.showPackageDetails("${pkgId}");'>🗑️ Remove from Cart</button>`
-      : `<button class="modal-action-btn add-btn" onclick='CustomerDashboard.toggleCart(${JSON.stringify(pkg)}, event); CustomerDashboard.showPackageDetails("${pkgId}");'>🛒 Add to Cart</button>`;
+      ? `<button class="modal-action-btn remove-btn" onclick="CustomerDashboard.toggleCart('${Utils.escapeHtml(pkgId)}', event); CustomerDashboard.showPackageDetails('${Utils.escapeHtml(pkgId)}');">🗑️ Remove from Cart</button>`
+      : `<button class="modal-action-btn add-btn" onclick="CustomerDashboard.toggleCart('${Utils.escapeHtml(pkgId)}', event); CustomerDashboard.showPackageDetails('${Utils.escapeHtml(pkgId)}');">🛒 Add to Cart</button>`;
 
     let modal = document.getElementById('package-detail-modal');
     if (!modal) {
@@ -528,9 +522,6 @@ const CustomerDashboard = {
     modal.style.display = 'flex';
   },
 
-  /**
-   * Strictly Photos / Images Compression (Zero PDF Logic)
-   */
   async compressPrescriptionImage(file) {
     return new Promise((resolve) => {
       const reader = new FileReader();
@@ -576,7 +567,6 @@ const CustomerDashboard = {
     const file = event.target.files && event.target.files[0];
     if (!file) return;
 
-    // Strict Image Only Guard (Blocks PDFs and unwanted documents)
     if (file.type && !file.type.startsWith('image/')) {
       if (typeof Utils !== 'undefined') {
         Utils.showToast('Please upload a clear prescription photo (JPEG/PNG). PDF is not supported.', 'error');
@@ -610,7 +600,6 @@ const CustomerDashboard = {
         throw new Error('Image compression failed');
       }
 
-      // Unified processPrescriptionOCR call
       const response = await Api.processPrescriptionOCR(base64Data, 'image/jpeg');
 
       if (resolved) return;
@@ -875,14 +864,14 @@ const CustomerDashboard = {
     let cart = this.getCart();
     const pkgObj = { ...raw, type: 'package' };
 
-    // Conflict Check
     if (typeof ConflictValidator !== 'undefined') {
-      const conflict = ConflictValidator.checkConflict(pkgObj, cart);
-      if (conflict.hasConflict) {
-        alert(conflict.reason);
-        if (typeof Utils !== 'undefined') Utils.showToast(conflict.reason, 'error');
-        return;
-      }
+      try {
+        const conflict = ConflictValidator.checkConflict(pkgObj, cart);
+        if (conflict && conflict.hasConflict) {
+          if (typeof Utils !== 'undefined') Utils.showToast(conflict.reason, 'error');
+          return;
+        }
+      } catch (e) {}
     }
 
     const id = raw.PackageID || raw.PackageCode;
@@ -1022,13 +1011,14 @@ const CustomerDashboard = {
           addedAt: new Date().toISOString()
         };
 
-        // Conflict check for prescription items
         if (typeof ConflictValidator !== 'undefined') {
-          const conflict = ConflictValidator.checkConflict(testItem, cart);
-          if (conflict.hasConflict) {
-            console.warn(`Prescription item conflict skipped: ${conflict.reason}`);
-            return;
-          }
+          try {
+            const conflict = ConflictValidator.checkConflict(testItem, cart);
+            if (conflict && conflict.hasConflict) {
+              console.warn(`Prescription item conflict skipped: ${conflict.reason}`);
+              return;
+            }
+          } catch (e) {}
         }
 
         if (!this.isItemInCart(tid, code, name)) {
