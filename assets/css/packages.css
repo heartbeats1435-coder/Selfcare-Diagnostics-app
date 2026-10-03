@@ -1,8 +1,9 @@
 /**
- * Selfcare Diagnostics - Packages Page CSS (Complete 3D Glassmorphism, 2-Column Grid, and Voice/Fly-to-Cart Effects)
+ * Selfcare Diagnostics - Packages Page CSS v5.5.0
+ * Complete 3D Glassmorphism, 2-Column Grid, Dynamic Category Bar & 3-Tier Neon Glow Effects
  */
 
-/* Sticky Top Search Section */
+/* Sticky Top Search & Category Section */
 .search-section {
   position: sticky;
   top: 0;
@@ -50,7 +51,6 @@
   transition: all 0.3s ease;
 }
 
-/* Pulsing Listening Animation for Voice Search */
 .voice-search-btn.listening {
   background: #E4005A !important;
   color: #FFFFFF !important;
@@ -59,90 +59,62 @@
 }
 
 @keyframes pulseVoice {
-  0% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(228, 0, 90, 0.7);
-  }
-  70% {
-    transform: scale(1.15);
-    box-shadow: 0 0 0 10px rgba(228, 0, 90, 0);
-  }
-  100% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(228, 0, 90, 0);
-  }
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(228, 0, 90, 0.7); }
+  70% { transform: scale(1.15); box-shadow: 0 0 0 10px rgba(228, 0, 90, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(228, 0, 90, 0); }
 }
 
-/* Single Box Auto-Slider */
-.single-slider-box {
+/* Category Selection Bar */
+.category-selection-container {
   width: 100%;
-  height: 56px;
-  position: relative;
   overflow: hidden;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(7, 136, 102, 0.25);
-  box-shadow: 0 8px 24px rgba(7, 136, 102, 0.1), inset 0 1px 2px rgba(255, 255, 255, 0.9);
+  margin-top: 4px;
 }
 
-.slider-track {
+.category-track {
   display: flex;
-  width: 100%;
-  height: 100%;
-  transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1);
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 2px 6px 2px;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
 }
 
-.slide-item {
-  min-width: 100%;
-  width: 100%;
-  height: 100%;
-  padding: 6px 14px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  box-sizing: border-box;
+.category-track::-webkit-scrollbar {
+  display: none;
 }
 
-.slide-content h4 {
-  font-size: 12px;
-  font-weight: 800;
-  color: #045D49;
-  margin-bottom: 1px;
-  line-height: 1.2;
-}
-
-.slide-content p {
-  font-size: 10px;
-  color: #536E66;
-  font-weight: 600;
-  line-height: 1.2;
-}
-
-.slide-badge {
-  font-size: 8px;
-  font-weight: 800;
-  color: #E4005A;
-  text-transform: uppercase;
-  display: block;
-  letter-spacing: 0.3px;
-}
-
-.slide-btn {
-  background: linear-gradient(135deg, #078866, #045D49);
-  color: #ffffff;
-  border: none;
-  padding: 6px 12px;
-  border-radius: 8px;
-  font-size: 10px;
+.cat-pill {
+  padding: 7px 15px;
+  border-radius: 20px;
+  font-size: 11.5px;
   font-weight: 700;
-  cursor: pointer;
   white-space: nowrap;
-  box-shadow: 0 4px 10px rgba(7, 136, 102, 0.25);
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(7, 136, 102, 0.22);
+  color: #045D49;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 8px rgba(7, 136, 102, 0.06);
+  flex-shrink: 0;
 }
 
-/* 2-Column Compact Packages Grid matching Tests Page */
+.cat-pill:hover {
+  background: #E8F7F2;
+  border-color: #078866;
+  transform: translateY(-1px);
+}
+
+.cat-pill.active {
+  background: linear-gradient(135deg, #078866, #045D49) !important;
+  color: #FFFFFF !important;
+  border-color: #045D49 !important;
+  box-shadow: 0 4px 14px rgba(7, 136, 102, 0.35) !important;
+  transform: scale(1.02);
+}
+
+/* 2-Column Compact Packages Grid */
 .packages-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -151,6 +123,7 @@
 }
 
 .package-card {
+  position: relative;
   padding: 12px;
   display: flex;
   flex-direction: column;
@@ -166,6 +139,134 @@
 .package-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+}
+
+/* ==========================================================================
+   NEON GLOWING LIGHT EFFECTS FOR FIRST 3 PACKAGES
+   ========================================================================== */
+
+/* Base Neon Card Setup */
+.neon-glowing-card {
+  position: relative !important;
+}
+
+/* Pack 1: Vibrant Mint & Emerald Neon Glow */
+.neon-card-1 {
+  border: 2px solid #05FFA1 !important;
+  background: linear-gradient(160deg, #FFFFFF 0%, #F0FDF8 100%) !important;
+  box-shadow: 0 0 14px rgba(5, 255, 161, 0.5), 0 0 28px rgba(5, 255, 161, 0.22), 0 4px 15px rgba(0, 0, 0, 0.04) !important;
+  animation: neonGlow1 2.4s infinite alternate ease-in-out !important;
+}
+
+@keyframes neonGlow1 {
+  0% {
+    border-color: #05FFA1;
+    box-shadow: 0 0 10px rgba(5, 255, 161, 0.4), 0 0 20px rgba(5, 255, 161, 0.18), inset 0 0 6px rgba(5, 255, 161, 0.1);
+    transform: translateY(0);
+  }
+  50% {
+    border-color: #00F59B;
+    box-shadow: 0 0 18px rgba(5, 255, 161, 0.75), 0 0 36px rgba(0, 245, 155, 0.35), inset 0 0 12px rgba(5, 255, 161, 0.2);
+    transform: translateY(-2px);
+  }
+  100% {
+    border-color: #05FFA1;
+    box-shadow: 0 0 10px rgba(5, 255, 161, 0.4), 0 0 20px rgba(5, 255, 161, 0.18), inset 0 0 6px rgba(5, 255, 161, 0.1);
+    transform: translateY(0);
+  }
+}
+
+/* Pack 2: Electric Cyan & Sky Blue Neon Glow */
+.neon-card-2 {
+  border: 2px solid #00D2FF !important;
+  background: linear-gradient(160deg, #FFFFFF 0%, #F0F9FF 100%) !important;
+  box-shadow: 0 0 14px rgba(0, 210, 255, 0.5), 0 0 28px rgba(0, 210, 255, 0.22), 0 4px 15px rgba(0, 0, 0, 0.04) !important;
+  animation: neonGlow2 2.4s infinite alternate ease-in-out !important;
+}
+
+@keyframes neonGlow2 {
+  0% {
+    border-color: #00D2FF;
+    box-shadow: 0 0 10px rgba(0, 210, 255, 0.4), 0 0 20px rgba(0, 210, 255, 0.18), inset 0 0 6px rgba(0, 210, 255, 0.1);
+    transform: translateY(0);
+  }
+  50% {
+    border-color: #38E1FF;
+    box-shadow: 0 0 18px rgba(0, 210, 255, 0.75), 0 0 36px rgba(56, 225, 255, 0.35), inset 0 0 12px rgba(0, 210, 255, 0.2);
+    transform: translateY(-2px);
+  }
+  100% {
+    border-color: #00D2FF;
+    box-shadow: 0 0 10px rgba(0, 210, 255, 0.4), 0 0 20px rgba(0, 210, 255, 0.18), inset 0 0 6px rgba(0, 210, 255, 0.1);
+    transform: translateY(0);
+  }
+}
+
+/* Pack 3: Ultra Turquoise / Teal Neon Glow (Recommended Spotlight) */
+.neon-card-3 {
+  border: 2px solid #00F5D4 !important;
+  background: linear-gradient(160deg, #FFFFFF 0%, #E6FCF7 100%) !important;
+  box-shadow: 0 0 18px rgba(0, 245, 212, 0.65), 0 0 36px rgba(0, 245, 212, 0.3), 0 4px 15px rgba(0, 0, 0, 0.04) !important;
+  animation: neonGlow3 2.2s infinite alternate ease-in-out !important;
+}
+
+@keyframes neonGlow3 {
+  0% {
+    border-color: #00F5D4;
+    box-shadow: 0 0 12px rgba(0, 245, 212, 0.45), 0 0 24px rgba(0, 245, 212, 0.2), inset 0 0 8px rgba(0, 245, 212, 0.1);
+    transform: translateY(0);
+  }
+  50% {
+    border-color: #05FFA1;
+    box-shadow: 0 0 24px rgba(0, 245, 212, 0.85), 0 0 44px rgba(5, 255, 161, 0.45), inset 0 0 14px rgba(0, 245, 212, 0.25);
+    transform: translateY(-2px);
+  }
+  100% {
+    border-color: #00F5D4;
+    box-shadow: 0 0 12px rgba(0, 245, 212, 0.45), 0 0 24px rgba(0, 245, 212, 0.2), inset 0 0 8px rgba(0, 245, 212, 0.1);
+    transform: translateY(0);
+  }
+}
+
+/* Floating Neon Badges */
+.neon-recommended-badge {
+  position: absolute;
+  top: -10px;
+  right: 10px;
+  font-size: 8.5px;
+  font-weight: 900;
+  letter-spacing: 0.6px;
+  padding: 3px 8px;
+  border-radius: 20px;
+  text-transform: uppercase;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  animation: badgeSparkle 1.8s infinite alternate ease-in-out;
+}
+
+.neon-badge-1 {
+  background: linear-gradient(135deg, #05FFA1, #078866);
+  color: #033F33;
+  box-shadow: 0 0 12px rgba(5, 255, 161, 0.75), 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.neon-badge-2 {
+  background: linear-gradient(135deg, #00D2FF, #0077B6);
+  color: #FFFFFF;
+  box-shadow: 0 0 12px rgba(0, 210, 255, 0.75), 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.neon-badge-3 {
+  background: linear-gradient(135deg, #00F5D4, #078866);
+  color: #033F33;
+  box-shadow: 0 0 14px rgba(0, 245, 212, 0.9), 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+@keyframes badgeSparkle {
+  0% { transform: scale(1); filter: brightness(1); }
+  100% { transform: scale(1.05); filter: brightness(1.2); }
 }
 
 .package-card-top {
@@ -196,7 +297,6 @@
   text-transform: uppercase;
 }
 
-/* Card Box Parameters Count Badge */
 .card-param-badge {
   display: inline-flex;
   align-items: center;
@@ -212,7 +312,6 @@
   margin-top: 2px;
 }
 
-/* Card Fasting Tag */
 .card-fasting-tag {
   font-size: 8px;
   font-weight: 800;
@@ -303,7 +402,6 @@
   color: #ffffff !important;
 }
 
-/* 5-Tab Footer Navigation */
 .bottom-nav {
   position: fixed;
   bottom: 0;
@@ -356,7 +454,6 @@
   text-align: center;
 }
 
-/* Fly-to-Cart Floating Dot & Badge Bump */
 .fly-cart-dot {
   position: fixed;
   z-index: 9999;
@@ -385,7 +482,7 @@
   100% { transform: scale(1); }
 }
 
-/* Ultra 3D Glassmorphic Modal */
+/* 3D Glassmorphic Modal */
 .sia-modal-overlay {
   display: none;
   position: fixed;
