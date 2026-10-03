@@ -13,13 +13,13 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
   <!-- Versioned Stylesheets matching Tests Page -->
-  <link rel="stylesheet" href="assets/css/global.css?v=5.3.0">
-  <link rel="stylesheet" href="assets/css/components.css?v=5.3.0">
-  <link rel="stylesheet" href="assets/css/responsive.css?v=5.3.0">
-  <link rel="stylesheet" href="assets/css/packages.css?v=5.3.0">
+  <link rel="stylesheet" href="assets/css/global.css?v=5.4.0">
+  <link rel="stylesheet" href="assets/css/components.css?v=5.4.0">
+  <link rel="stylesheet" href="assets/css/responsive.css?v=5.4.0">
+  <link rel="stylesheet" href="assets/css/packages.css?v=5.4.0">
 
   <style>
-    /* Sticky Top Bar (Search + Single Box Slider) */
+    /* Sticky Top Bar (Search + Category Selection) */
     .search-section {
       position: sticky !important;
       top: 0 !important;
@@ -54,73 +54,54 @@
       outline: none !important;
     }
 
-    /* Single Box Auto-Slider */
-    .single-slider-box {
+    /* Category Selection Scroll Bar */
+    .category-selection-container {
       width: 100% !important;
-      height: 56px !important;
-      position: relative !important;
       overflow: hidden !important;
-      border-radius: 14px !important;
-      background: rgba(255, 255, 255, 0.92) !important;
-      backdrop-filter: blur(20px) !important;
-      -webkit-backdrop-filter: blur(20px) !important;
-      border: 1px solid rgba(7, 136, 102, 0.25) !important;
-      box-shadow: 0 8px 24px rgba(7, 136, 102, 0.1), inset 0 1px 2px rgba(255, 255, 255, 0.9) !important;
+      margin-top: 4px !important;
     }
 
-    .slider-track {
+    .category-track {
       display: flex !important;
-      width: 100% !important;
-      height: 100% !important;
-      transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1) !important;
+      gap: 8px !important;
+      overflow-x: auto !important;
+      padding: 4px 2px 6px 2px !important;
+      scroll-behavior: smooth !important;
+      -webkit-overflow-scrolling: touch !important;
+      scrollbar-width: none !important;
     }
 
-    .slide-item {
-      min-width: 100% !important;
-      width: 100% !important;
-      height: 100% !important;
-      padding: 6px 14px !important;
-      display: flex !important;
-      justify-content: space-between !important;
-      align-items: center !important;
-      box-sizing: border-box !important;
+    .category-track::-webkit-scrollbar {
+      display: none !important;
     }
 
-    .slide-content h4 {
-      font-size: 12px !important;
-      font-weight: 800 !important;
-      color: #045D49 !important;
-      margin-bottom: 1px !important;
-      line-height: 1.2 !important;
-    }
-
-    .slide-content p {
-      font-size: 10px !important;
-      color: #536E66 !important;
-      font-weight: 600 !important;
-      line-height: 1.2 !important;
-    }
-
-    .slide-badge {
-      font-size: 8px !important;
-      font-weight: 800 !important;
-      color: #E4005A !important;
-      text-transform: uppercase !important;
-      display: block !important;
-      letter-spacing: 0.3px !important;
-    }
-
-    .slide-btn {
-      background: linear-gradient(135deg, #078866, #045D49) !important;
-      color: #ffffff !important;
-      border: none !important;
-      padding: 6px 12px !important;
-      border-radius: 8px !important;
-      font-size: 10px !important;
+    .cat-pill {
+      padding: 7px 15px !important;
+      border-radius: 20px !important;
+      font-size: 11.5px !important;
       font-weight: 700 !important;
-      cursor: pointer !important;
       white-space: nowrap !important;
-      box-shadow: 0 4px 10px rgba(7, 136, 102, 0.25) !important;
+      background: rgba(255, 255, 255, 0.95) !important;
+      border: 1px solid rgba(7, 136, 102, 0.22) !important;
+      color: #045D49 !important;
+      cursor: pointer !important;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+      box-shadow: 0 2px 8px rgba(7, 136, 102, 0.06) !important;
+      flex-shrink: 0 !important;
+    }
+
+    .cat-pill:hover {
+      background: #E8F7F2 !important;
+      border-color: #078866 !important;
+      transform: translateY(-1px) !important;
+    }
+
+    .cat-pill.active {
+      background: linear-gradient(135deg, #078866, #045D49) !important;
+      color: #FFFFFF !important;
+      border-color: #045D49 !important;
+      box-shadow: 0 4px 14px rgba(7, 136, 102, 0.35) !important;
+      transform: scale(1.02) !important;
     }
 
     /* 2-Column Compact Grid matching Tests Page */
@@ -132,6 +113,7 @@
     }
 
     .package-card {
+      position: relative !important;
       padding: 12px !important;
       display: flex !important;
       flex-direction: column !important;
@@ -142,6 +124,56 @@
       border-radius: 14px !important;
       box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04) !important;
       transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .package-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+    }
+
+    /* Neon Glowing Light Effect for SCD pack 003 */
+    .neon-glowing-card {
+      border: 2px solid #00F5D4 !important;
+      background: linear-gradient(160deg, #FFFFFF 0%, #F0FDF8 100%) !important;
+      box-shadow: 0 0 16px rgba(0, 245, 212, 0.45), 0 0 32px rgba(0, 245, 212, 0.2), 0 4px 15px rgba(0, 0, 0, 0.04) !important;
+      animation: neonGlowPulse 2.2s infinite alternate ease-in-out !important;
+    }
+
+    @keyframes neonGlowPulse {
+      0% {
+        border-color: #00F5D4;
+        box-shadow: 0 0 12px rgba(0, 245, 212, 0.4), 0 0 24px rgba(0, 245, 212, 0.2), inset 0 0 8px rgba(0, 245, 212, 0.1);
+        transform: translateY(0);
+      }
+      50% {
+        border-color: #05FFA1;
+        box-shadow: 0 0 22px rgba(5, 255, 161, 0.75), 0 0 42px rgba(0, 245, 212, 0.4), inset 0 0 14px rgba(5, 255, 161, 0.2);
+        transform: translateY(-2px);
+      }
+      100% {
+        border-color: #00F5D4;
+        box-shadow: 0 0 12px rgba(0, 245, 212, 0.4), 0 0 24px rgba(0, 245, 212, 0.2), inset 0 0 8px rgba(0, 245, 212, 0.1);
+        transform: translateY(0);
+      }
+    }
+
+    .neon-recommended-badge {
+      position: absolute !important;
+      top: -10px !important;
+      right: 10px !important;
+      background: linear-gradient(135deg, #00F5D4, #078866) !important;
+      color: #033F33 !important;
+      font-size: 8.5px !important;
+      font-weight: 900 !important;
+      letter-spacing: 0.6px !important;
+      padding: 3px 8px !important;
+      border-radius: 20px !important;
+      box-shadow: 0 0 12px rgba(0, 245, 212, 0.8), 0 2px 6px rgba(0, 0, 0, 0.15) !important;
+      text-transform: uppercase !important;
+      z-index: 10 !important;
+      display: flex !important;
+      align-items: center !important;
+      gap: 3px !important;
     }
 
     .package-card-top {
@@ -172,7 +204,6 @@
       text-transform: uppercase !important;
     }
 
-    /* Fasting Tag Styles */
     .card-fasting-tag {
       font-size: 8px !important;
       font-weight: 800 !important;
@@ -195,7 +226,6 @@
       border: 1px solid rgba(7, 136, 102, 0.25) !important;
     }
 
-    /* Exterior Parameter Count Badge */
     .card-param-badge {
       display: inline-flex !important;
       align-items: center !important;
@@ -275,7 +305,6 @@
       color: #ffffff !important;
     }
 
-    /* 5-Tab Fixed Bottom Navigation */
     .bottom-nav {
       position: fixed !important;
       bottom: 0 !important;
@@ -334,7 +363,7 @@
   <!-- Main Container -->
   <main class="main-container" style="padding-top: 10px;">
     
-    <!-- Top Sticky Search Bar & Single Box 3D Auto-Slider -->
+    <!-- Top Sticky Search Bar & Category Selection Option -->
     <section class="search-section">
       <div class="search-bar glass-card">
         <span class="search-icon">🔍</span>
@@ -342,33 +371,11 @@
         <button class="voice-search-btn" id="voice-search-btn" onclick="PackagesPage.startVoiceSearch()" title="Voice Search">🎙️</button>
       </div>
 
-      <!-- Single Box Slider -->
-      <div class="single-slider-box">
-        <div class="slider-track" id="singleSliderTrack">
-          <div class="slide-item">
-            <div class="slide-content">
-              <span class="slide-badge">🔥 SPECIAL OFFER</span>
-              <h4>Selfcare Elite Health Panel</h4>
-              <p>85+ Essential Tests @ ₹1,799 only</p>
-            </div>
-            <button class="slide-btn" onclick="PackagesPage.filterByKeyword('Elite')">View →</button>
-          </div>
-          <div class="slide-item">
-            <div class="slide-content">
-              <span class="slide-badge">⚡ NABL ACCREDITED</span>
-              <h4>Selfcare Premium Package</h4>
-              <p>60+ Parameters with Doorstep Pickup @ ₹999</p>
-            </div>
-            <button class="slide-btn" onclick="PackagesPage.filterByKeyword('Premium')">View →</button>
-          </div>
-          <div class="slide-item">
-            <div class="slide-content">
-              <span class="slide-badge">🛡️ PREVENTIVE CARE</span>
-              <h4>Selfcare Basic Wellness</h4>
-              <p>35+ Routine Blood & Health Tests @ ₹499</p>
-            </div>
-            <button class="slide-btn" onclick="PackagesPage.filterByKeyword('Basic')">View →</button>
-          </div>
+      <!-- Category Selection Option Bar (Replaces Carousel) -->
+      <div class="category-selection-container">
+        <div class="category-track" id="categoryFilterTrack">
+          <button class="cat-pill active" onclick="PackagesPage.selectCategory('All')">All Packages</button>
+          <!-- Dynamic categories populated from Backend via packages.js -->
         </div>
       </div>
     </section>
@@ -376,7 +383,6 @@
     <!-- Packages Catalogue Container (2-Column Grid) -->
     <section class="catalogue-section">
       <div id="packages-catalogue-container" class="packages-grid">
-        <!-- Dynamically rendered via packages.js -->
         <div class="skeleton-card"></div>
         <div class="skeleton-card"></div>
       </div>
@@ -410,29 +416,13 @@
   </nav>
 
   <!-- Core JavaScript Scripts -->
-  <script src="assets/js/config.js?v=5.3.0"></script>
-  <script src="assets/js/utils.js?v=5.3.0"></script>
-  <script src="assets/js/api.js?v=5.3.0"></script>
-  <script src="assets/js/offline-db.js?v=5.3.0"></script>
-  <script src="assets/js/offline-sync.js?v=5.3.0"></script>
-  <script src="assets/js/auth.js?v=5.3.0"></script>
-  <script src="assets/js/app.js?v=5.3.0"></script>
-  <script src="assets/js/packages.js?v=5.3.0"></script>
-
-  <!-- Slider Auto-slide Script -->
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const track = document.getElementById('singleSliderTrack');
-      if (track) {
-        let currentSlide = 0;
-        const totalSlides = track.children.length;
-        
-        setInterval(() => {
-          currentSlide = (currentSlide + 1) % totalSlides;
-          track.style.transform = `translateX(-${currentSlide * 100}%)`;
-        }, 3200);
-      }
-    });
-  </script>
+  <script src="assets/js/config.js?v=5.4.0"></script>
+  <script src="assets/js/utils.js?v=5.4.0"></script>
+  <script src="assets/js/api.js?v=5.4.0"></script>
+  <script src="assets/js/offline-db.js?v=5.4.0"></script>
+  <script src="assets/js/offline-sync.js?v=5.4.0"></script>
+  <script src="assets/js/auth.js?v=5.4.0"></script>
+  <script src="assets/js/app.js?v=5.4.0"></script>
+  <script src="assets/js/packages.js?v=5.4.0"></script>
 </body>
 </html>
