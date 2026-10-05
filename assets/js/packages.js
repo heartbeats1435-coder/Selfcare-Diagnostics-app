@@ -1,12 +1,13 @@
 /* file: assets/js/packages.js */
 /**
- * Selfcare Diagnostics - Health Packages Page JS v5.0.0
+ * Selfcare Diagnostics - Health Packages Page JS v5.1.0
  * Features:
  * 1. Strict Backend-Only Data Loading.
  * 2. 3-Tier Neon Glow Effects for Top 3 Packages.
  * 3. Dynamic Category Selection Bar.
  * 4. Advanced Multi-Tier Conflict Validation Engine (Blocks Duplicate Packages & Tests).
  * 5. Safe ID-based Cart Toggle & Voice Search.
+ * 6. Search State Persistence during Background Offline Sync.
  */
 
 const PackagesPage = {
@@ -167,9 +168,18 @@ const PackagesPage = {
 
   filterAndRender() {
     let filtered = this.allPackages;
+
+    const searchInput = document.getElementById('packages-search-input');
+    const query = searchInput ? searchInput.value.trim() : '';
+
+    if (query) {
+      filtered = this.filterPackagesByQuery(query);
+    }
+
     if (this.currentCategory && this.currentCategory.toLowerCase() !== 'all') {
       filtered = filtered.filter(pkg => pkg.Category && pkg.Category.toLowerCase() === this.currentCategory.toLowerCase());
     }
+
     const prioritized = this.sortPackagesWithScdPriority(filtered);
     this.renderPackages(prioritized);
   },
@@ -387,7 +397,7 @@ const PackagesPage = {
       const duration = match ? match[0] : '10 - 12 Hours';
       return {
         isFasting: true,
-        badgeText: '⚠️️ Fasting Required',
+        badgeText: '⚠ Fasting Required',
         cardText: 'Fasting',
         durationText: `${duration} overnight fasting is required (Water is permitted).`
       };
@@ -559,7 +569,7 @@ const PackagesPage = {
           voiceBtn.innerHTML = '🔴';
         }
         if (typeof Utils !== 'undefined') {
-          Utils.showToast('🎙️️ Listening... Speak package or symptoms', 'info');
+          Utils.showToast('🎙 Listening... Speak package or symptoms', 'info');
         }
       };
 
@@ -569,8 +579,7 @@ const PackagesPage = {
           if (searchInput) {
             searchInput.value = transcript;
           }
-          const filtered = this.filterPackagesByQuery(transcript);
-          this.renderPackages(filtered);
+          this.filterAndRender();
           if (typeof Utils !== 'undefined') {
             Utils.showToast(`Search: "${transcript}"`, 'success');
           }
@@ -612,10 +621,19 @@ const PackagesPage = {
   setupEventListeners() {
     const searchInput = document.getElementById('packages-search-input');
     if (searchInput) {
-      searchInput.addEventListener('input', Utils.debounce((e) => {
-        const query = e.target.value;
-        const filtered = this.filterPackagesByQuery(query);
-        this.renderPackages(filtered);
+      const parentForm = searchInput.closest('form');
+      if (parentForm) {
+        parentForm.addEventListener('submit', (e) => e.preventDefault());
+      }
+
+      searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+        }
+      });
+
+      searchInput.addEventListener('input', Utils.debounce(() => {
+        this.filterAndRender();
       }, 250));
     }
 

@@ -1,10 +1,13 @@
 /* file: assets/js/customer.js */
 /**
- * Selfcare Diagnostics - Customer Dashboard JS v8.5.0
- * Fully Fixed:
- * 1. Safe ID-based Cart Toggle (Eliminated JSON.stringify single-quote syntax break).
- * 2. Auto-attachment of type: 'package' for proper Conflict Validation & Cart storage.
- * 3. 3-Tier Neon Glow Effects with priority fallback for Top 3 packages.
+ * Selfcare Diagnostics - Customer Dashboard JS v8.6.0
+ * Features:
+ * 1. Safe ID-based Cart Toggle & Conflict Validation.
+ * 2. Native Web Share API integration (navigator.share) with Clipboard fallback.
+ * 3. Dedicated Share button on every Test and Package card (top-right corner).
+ * 4. Stop propagation safeguards (prevents accidental card click or cart toggles).
+ * 5. Deep-linking support for shared tests and packages.
+ * 6. 3-Tier Neon Glow Effects with priority fallback for Top 3 packages.
  */
 
 const CustomerDashboard = {
@@ -43,6 +46,7 @@ const CustomerDashboard = {
       this.setupAutoSlideCarousel();
       this.updateCartBadgeUI();
       await this.loadLocalCatalogue();
+      this.handleDeepLinks();
     } catch (error) {
       console.error('CustomerDashboard init error:', error);
     }
@@ -86,6 +90,7 @@ const CustomerDashboard = {
         if (localPkgs && localPkgs.length > 0) {
           this.allPackages = localPkgs;
           this.renderPopularPackages();
+          this.renderPopularTests();
         } else if (container) {
           container.innerHTML = '<p class="empty-msg" style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 20px;">Fetching popular packages from server...</p>';
         }
@@ -100,7 +105,10 @@ const CustomerDashboard = {
         try {
           if (typeof OfflineSync.syncTests === 'function') {
             const freshTests = await OfflineSync.syncTests();
-            if (freshTests && freshTests.length > 0) this.allTests = freshTests;
+            if (freshTests && freshTests.length > 0) {
+              this.allTests = freshTests;
+              this.renderPopularTests();
+            }
           }
           if (typeof OfflineSync.syncPackages === 'function') {
             const freshPkgs = await OfflineSync.syncPackages();
@@ -109,6 +117,7 @@ const CustomerDashboard = {
               this.renderPopularPackages();
             }
           }
+          this.handleDeepLinks();
         } catch (err) {
           console.warn('Background sync error:', err);
         }
@@ -302,6 +311,7 @@ const CustomerDashboard = {
     this.saveCartStorage(cart);
     this.updateCartBadgeUI();
     this.renderPopularPackages();
+    this.renderPopularTests();
   },
 
   extractParametersList(rawParams) {
@@ -362,8 +372,213 @@ const CustomerDashboard = {
     }
   },
 
+  // =========================================================================
+  // REUSABLE NATIVE SHARE & CLIPBOARD FALLBACK ENGINE
+  // =========================================================================
+
+  getBaseAppUrl() {
+    if (typeof window !== 'undefined' && window.location) {
+      const origin = window.location.origin;
+      if (origin && origin !== 'null' && !origin.startsWith('file')) {
+        return origin;
+      }
+    }
+    return 'https://selfcarediagnostics.in';
+  },
+
+  async copyToClipboard(text) {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      if (typeof Utils !== 'undefined' && Utils.showToast) {
+        Utils.showToast('Share link copied to clipboard!', 'success');
+      }
+    } catch (err) {
+      console.error('Clipboard copy failed:', err);
+      if (typeof Utils !== 'undefined' && Utils.showToast) {
+        Utils.showToast('Unable to copy share link', 'error');
+      }
+    }
+  },
+
+  async executeShare(shareTitle, shareBody, shareUrl) {
+    const fullShareText = `${shareBody}\n${shareUrl}`;
+
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        await navigator.share({
+          title: shareTitle,
+          text: shareBody,
+          url: shareUrl
+        });
+        return;
+      } catch (err) {
+        if (err.name === 'AbortError') return;
+        try {
+          await navigator.share({
+            title: shareTitle,
+            text: fullShareText
+          });
+          return;
+        } catch (err2) {
+          if (err2.name === 'AbortError') return;
+          console.warn('Native share failed, falling back to clipboard:', err2);
+        }
+      }
+    }
+
+    await this.copyToClipboard(fullShareText);
+  },
+
   /**
-   * Renders the popular packages with click-safe ID binding.
+   * Share Package dynamically with exact package details
+   */
+  sharePackage(pkgOrId, event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (typeof event.stopImmediatePropagation === 'function') {
+        event.stopImmediatePropagation();
+      }
+    }
+
+    let pkg = pkgOrId;
+    if (typeof pkgOrId === 'string') {
+      const cleanId = pkgOrId.trim();
+      pkg = this.allPackages.find(p => String(p.PackageID) === cleanId || String(p.PackageCode) === cleanId);
+      if (!pkg) {
+        try {
+          const cached = JSON.parse(localStorage.getItem('cache_packages') || '[]');
+          pkg = cached.find(p => String(p.PackageID) === cleanId || String(p.PackageCode) === cleanId);
+        } catch (e) {}
+      }
+    }
+
+    if (!pkg && typeof pkgOrId === 'object' && pkgOrId !== null) {
+      pkg = pkgOrId;
+    }
+
+    if (!pkg) {
+      console.warn('Package not found for sharing:', pkgOrId);
+      return;
+    }
+
+    const pkgId = pkg.PackageID || pkg.PackageCode || pkg.id || 'PKG';
+    const pkgName = pkg.PackageName || pkg.name || 'Health Package';
+    const price = Number(pkg.OfferPrice || pkg.price || pkg.MRP || 0);
+    const priceFormatted = (typeof Utils !== 'undefined' && Utils.formatCurrency)
+      ? Utils.formatCurrency(price)
+      : (`₹${price}`);
+
+    let testCountText = '';
+    const numCount = Number(pkg.TestsCount || pkg.ParametersCount);
+    if (!isNaN(numCount) && numCount > 0) {
+      testCountText = `${numCount} Tests`;
+    } else {
+      const items = this.extractParametersList(pkg.Parameters || pkg.Description);
+      if (items && items.length > 0) {
+        testCountText = `${items.length} Tests`;
+      } else {
+        testCountText = this.getPackageParameterCount(pkg);
+      }
+    }
+
+    const baseUrl = this.getBaseAppUrl();
+    const shareUrl = `${baseUrl}/packages.html?package=${encodeURIComponent(pkgId)}`;
+    const shareTitle = `💚 SELFCARE DIAGNOSTICS - ${pkgName}`;
+    const shareBody = `💚 SELFCARE DIAGNOSTICS\n\nPackage: ${pkgName}\n${testCountText}\nOffer Price: ${priceFormatted}\n\n📍 Home Sample Collection Available\n⚡ Fast Reports\n🏠 24/7 Home Collection\n\nView Package:`;
+
+    this.executeShare(shareTitle, shareBody, shareUrl);
+  },
+
+  /**
+   * Share Test dynamically with exact test details
+   */
+  shareTest(testOrId, event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (typeof event.stopImmediatePropagation === 'function') {
+        event.stopImmediatePropagation();
+      }
+    }
+
+    let test = testOrId;
+    if (typeof testOrId === 'string') {
+      const cleanId = testOrId.trim();
+      test = this.allTests.find(t => String(t.TestID) === cleanId || String(t.TestCode) === cleanId)
+          || this.fallbackTests.find(t => String(t.TestID) === cleanId || String(t.TestCode) === cleanId);
+      if (!test) {
+        try {
+          const cached = JSON.parse(localStorage.getItem('cache_tests') || '[]');
+          test = cached.find(t => String(t.TestID) === cleanId || String(t.TestCode) === cleanId);
+        } catch (e) {}
+      }
+    }
+
+    if (!test && typeof testOrId === 'object' && testOrId !== null) {
+      test = testOrId;
+    }
+
+    if (!test) {
+      console.warn('Test not found for sharing:', testOrId);
+      return;
+    }
+
+    const testId = test.TestID || test.TestCode || test.id || 'TEST';
+    const testName = test.TestName || test.name || 'Diagnostic Test';
+    const price = Number(test.OfferPrice || test.price || test.MRP || 0);
+    const priceFormatted = (typeof Utils !== 'undefined' && Utils.formatCurrency)
+      ? Utils.formatCurrency(price)
+      : (`₹${price}`);
+
+    const baseUrl = this.getBaseAppUrl();
+    const shareUrl = `${baseUrl}/tests.html?test=${encodeURIComponent(testId)}`;
+    const shareTitle = `🧪 SELFCARE DIAGNOSTICS - ${testName}`;
+    const shareBody = `🧪 SELFCARE DIAGNOSTICS\n\nTest: ${testName}\nPrice: ${priceFormatted}\n\n📍 Home Sample Collection Available\n⚡ Fast Reports\n🏠 24/7 Home Collection\n\nView Test:`;
+
+    this.executeShare(shareTitle, shareBody, shareUrl);
+  },
+
+  /**
+   * Safe deep link handler on page load
+   */
+  handleDeepLinks() {
+    try {
+      if (typeof window === 'undefined' || !window.location) return;
+      const urlParams = new URLSearchParams(window.location.search);
+      const pkgId = urlParams.get('package') || urlParams.get('pkg') || urlParams.get('packageId');
+      const testId = urlParams.get('test') || urlParams.get('testId');
+
+      if (pkgId && this.allPackages && this.allPackages.length > 0) {
+        setTimeout(() => {
+          this.showPackageDetails(pkgId);
+        }, 350);
+      } else if (testId && this.allTests && this.allTests.length > 0) {
+        setTimeout(() => {
+          const test = this.allTests.find(t => String(t.TestID) === String(testId) || String(t.TestCode) === String(testId));
+          if (test && typeof Utils !== 'undefined') {
+            Utils.showToast(`Selected Test: ${test.TestName} (${Utils.formatCurrency(test.OfferPrice)})`, 'info');
+          }
+        }, 350);
+      }
+    } catch (e) {
+      console.warn('Deep link inspect notice:', e);
+    }
+  },
+
+  /**
+   * Renders the popular packages with click-safe ID binding & top-right share icon.
    */
   renderPopularPackages() {
     const container = document.getElementById('popular-packages-container');
@@ -398,7 +613,6 @@ const CustomerDashboard = {
         neonBadgeHtml = '<div class="neon-recommended-badge neon-badge-3">✨ RECOMMENDED</div>';
       }
 
-      // Uses clean pkgId string instead of JSON.stringify to avoid syntax errors
       const actionButton = alreadyAdded 
         ? `<button type="button" class="book-btn added-btn" onclick="CustomerDashboard.toggleCart('${Utils.escapeHtml(pkgId)}', event)">Remove</button>`
         : `<button type="button" class="book-btn add-cart-btn" onclick="CustomerDashboard.toggleCart('${Utils.escapeHtml(pkgId)}', event)">🛒 Add To Cart</button>`;
@@ -408,10 +622,21 @@ const CustomerDashboard = {
           ${neonBadgeHtml}
           <div class="test-card-top">
             <div class="test-card-header-row">
-              <span class="test-code-tag">${Utils.escapeHtml(pkgCode)}</span>
-              <span class="card-fasting-tag ${fastingInfo.isFasting ? 'fasting' : 'non-fasting'}">
-                ${fastingInfo.cardText}
-              </span>
+              <div class="test-card-badge-group" style="display: flex; align-items: center; gap: 6px;">
+                <span class="test-code-tag">${Utils.escapeHtml(pkgCode)}</span>
+                <span class="card-fasting-tag ${fastingInfo.isFasting ? 'fasting' : 'non-fasting'}">
+                  ${fastingInfo.cardText}
+                </span>
+              </div>
+              <button type="button" class="card-share-btn" aria-label="Share Package" title="Share Package" onclick="CustomerDashboard.sharePackage('${Utils.escapeHtml(pkgId)}', event)">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <circle cx="18" cy="5" r="3"></circle>
+                  <circle cx="6" cy="12" r="3"></circle>
+                  <circle cx="18" cy="19" r="3"></circle>
+                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                  <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                </svg>
+              </button>
             </div>
             <h4>${Utils.escapeHtml(pkg.PackageName)}</h4>
             <div class="card-param-badge">
@@ -428,6 +653,55 @@ const CustomerDashboard = {
           <div class="test-pricing-row">
             <span class="mrp">${Utils.formatCurrency(pkg.MRP)}</span>
             <span class="offer-price">${Utils.formatCurrency(pkg.OfferPrice)}</span>
+          </div>
+
+          <div class="test-card-action-container">
+            ${actionButton}
+          </div>
+        </div>
+      `;
+    }).join('');
+  },
+
+  /**
+   * Renders popular tests if container is present
+   */
+  renderPopularTests() {
+    const container = document.getElementById('popular-tests-container');
+    if (!container) return;
+
+    if (!this.allTests || this.allTests.length === 0) return;
+
+    container.innerHTML = this.allTests.slice(0, 6).map(test => {
+      const testCode = test.TestCode || 'TEST';
+      const testId = test.TestID || testCode;
+      const alreadyAdded = this.isItemInCart(testId, testCode, test.TestName);
+
+      const actionButton = alreadyAdded 
+        ? `<button type="button" class="book-btn added-btn" onclick="CustomerDashboard.toggleCart('${Utils.escapeHtml(testId)}', event)">Remove</button>`
+        : `<button type="button" class="book-btn add-cart-btn" onclick="CustomerDashboard.toggleCart('${Utils.escapeHtml(testId)}', event)">🛒 Add To Cart</button>`;
+
+      return `
+        <div class="test-card glass-card animate-fade" style="position: relative;">
+          <div class="test-card-top">
+            <div class="test-card-header-row">
+              <span class="test-code-tag">${Utils.escapeHtml(testCode)}</span>
+              <button type="button" class="card-share-btn" aria-label="Share Test" title="Share Test" onclick="CustomerDashboard.shareTest('${Utils.escapeHtml(testId)}', event)">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <circle cx="18" cy="5" r="3"></circle>
+                  <circle cx="6" cy="12" r="3"></circle>
+                  <circle cx="18" cy="19" r="3"></circle>
+                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                  <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                </svg>
+              </button>
+            </div>
+            <h4>${Utils.escapeHtml(test.TestName)}</h4>
+          </div>
+
+          <div class="test-pricing-row">
+            ${test.MRP ? `<span class="mrp">${Utils.formatCurrency(test.MRP)}</span>` : ''}
+            <span class="offer-price">${Utils.formatCurrency(test.OfferPrice)}</span>
           </div>
 
           <div class="test-card-action-container">
@@ -466,7 +740,18 @@ const CustomerDashboard = {
             <span class="test-avatar-icon">📦</span>
             <h3>${Utils.escapeHtml(pkg.PackageName)}</h3>
           </div>
-          <button class="sia-close-btn" onclick="document.getElementById('package-detail-modal').style.display='none'">✕</button>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <button type="button" class="card-share-btn modal-share-btn" aria-label="Share Package" title="Share Package" onclick="CustomerDashboard.sharePackage('${Utils.escapeHtml(pkgId)}', event)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="18" cy="5" r="3"></circle>
+                <circle cx="6" cy="12" r="3"></circle>
+                <circle cx="18" cy="19" r="3"></circle>
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+              </svg>
+            </button>
+            <button class="sia-close-btn" onclick="document.getElementById('package-detail-modal').style.display='none'">✕</button>
+          </div>
         </div>
 
         <div class="sia-modal-body">

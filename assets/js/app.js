@@ -1,6 +1,6 @@
 /* file: assets/js/app.js */
 /**
- * Selfcare Diagnostics - Main Application Controller (app.js) v3.2.0 (Zero-Lag Engine)
+ * Selfcare Diagnostics - Main Application Controller (app.js) v3.3.0 (Zero-Lag Engine)
  * Manages core initialization, instant local-first session restoration,
  * multi-tenant cart state synchronization, ConflictValidator integration,
  * background IndexedDB, and smart dev Service Worker updates.
@@ -11,7 +11,7 @@ const App = {
 
   async init() {
     try {
-      console.log('[Selfcare App] Initializing v3.2.0 (Instant 0ms Mode)...');
+      console.log('[Selfcare App] Initializing v3.3.0 (Instant 0ms Mode)...');
       
       // 1. Instant Synchronous User Session Check (No network call, 0ms lag)
       if (typeof Auth !== 'undefined' && Auth.getUser) {
@@ -192,7 +192,7 @@ const App = {
   },
 
   /**
-   * Safe Add to Cart with ConflictValidator support (Protects SIA chat & voice additions)
+   * Safe Add to Cart with Dynamic ConflictValidator & Parameter Preservation
    */
   async addToCart(item) {
     try {
@@ -201,7 +201,7 @@ const App = {
       const itemId = String(item.TestID || item.PackageID || item.id || '');
       const itemName = item.TestName || item.PackageName || item.name || '';
 
-      // 1. Conflict Check: Duplicate parameters or package conflicts-ai thadukkum
+      // 1. Conflict Check: Validate dynamic backend parameters
       if (typeof ConflictValidator !== 'undefined' && typeof ConflictValidator.checkConflict === 'function') {
         const conflict = ConflictValidator.checkConflict(item, this.cart);
         if (conflict && conflict.hasConflict) {
@@ -226,7 +226,9 @@ const App = {
         return;
       }
 
+      // Preserves all backend fields (Parameters, TestIDs, Fasting) for downstream validation
       const cartItem = {
+        ...item,
         id: itemId,
         TestID: item.TestID || null,
         PackageID: item.PackageID || null,

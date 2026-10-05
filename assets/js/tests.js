@@ -1,14 +1,16 @@
 /* file: assets/js/tests.js */
 /**
- * Selfcare Diagnostics - Tests Page JS (Zero-Fail Edition) v4.2.0
+ * Selfcare Diagnostics - Tests Page JS (Zero-Fail Edition) v5.1.0
  * Features:
- * 1. Dual-Layer Conflict Validation Engine check before adding to cart (CBC vs Hb, RFT vs Urea, Package vs Test).
+ * 1. Dual-Layer Dynamic Conflict Validation check before adding to cart (CBC vs Hb, RFT vs Urea, Package vs Test).
  * 2. Multi-tenant Vault-Aware Cart Isolation (selfcare_cart_${activeUser}).
  * 3. Dedicated Category Switcher (selectCategory).
  * 4. Native Web Speech Recognition API Integration (Real-time voice search).
  * 5. Parameters Count Badge on outside card box.
- * 6. Natural Language Symptom Search Engine.
+ * 6. Natural Language Symptom Search Engine (Full 40 Symptoms Mapping).
  * 7. Fly-to-Cart Animation & 3D detail modal.
+ * 8. Package-Isolated Existence Checker.
+ * 9. Search State Persistence during Background Offline Sync.
  */
 
 const TestsPage = {
@@ -155,16 +157,22 @@ const TestsPage = {
     });
   },
 
+  /**
+   * Package-Isolated Existence Checker
+   */
   isItemInCart(testId, testCode, testName) {
     const cart = this.getCart();
-    const sId = String(testId || '');
-    const sCode = String(testCode || '');
-    const sName = String(testName || '');
+    const sId = String(testId || '').trim().toLowerCase();
+    const sCode = String(testCode || '').trim().toLowerCase();
+    const sName = String(testName || '').trim().toLowerCase();
 
     return cart.some(item => {
-      const iId = String(item.TestID || item.id || item.TestCode || item.code || '');
-      const iCode = String(item.TestCode || item.code || '');
-      const iName = String(item.TestName || item.name || '');
+      if (item.type === 'package' || item.PackageID || item.PackageCode || String(item.code || '').startsWith('PKG')) {
+        return false;
+      }
+      const iId = String(item.TestID || item.id || item.TestCode || item.code || '').trim().toLowerCase();
+      const iCode = String(item.TestCode || item.code || '').trim().toLowerCase();
+      const iName = String(item.TestName || item.name || '').trim().toLowerCase();
       return (sId && iId === sId) || (sCode && iCode === sCode) || (sName && iName === sName);
     });
   },
@@ -205,10 +213,28 @@ const TestsPage = {
     }, 550);
   },
 
+  toggleCartById(testId, event) {
+    const sId = String(testId).trim().toLowerCase();
+    const test = this.allTests.find(t => {
+      return String(t.TestID || '').trim().toLowerCase() === sId ||
+             String(t.TestCode || '').trim().toLowerCase() === sId;
+    });
+
+    if (test) {
+      this.toggleCart(test, event);
+    }
+  },
+
   /**
    * Multi-tenant Isolated Toggle Cart Action
    */
-  toggleCart(test, event) {
+  toggleCart(testOrId, event) {
+    let test = testOrId;
+    if (typeof testOrId === 'string') {
+      test = this.allTests.find(t => (t.TestID || t.TestCode) === testOrId);
+    }
+    if (!test) return;
+
     const testCode = test.TestCode || 'TEST';
     const testId = test.TestID || testCode;
     const testName = test.TestName || '';
@@ -216,13 +242,15 @@ const TestsPage = {
     let cart = this.getCart();
     const isAdded = this.isItemInCart(testId, testCode, testName);
 
-    // Conflict Check: Cart-il illadha pudhu test add seiyumbothu validate seigirom
     if (!isAdded) {
       if (typeof ConflictValidator !== 'undefined') {
         const conflict = ConflictValidator.checkConflict(test, cart);
-        if (conflict.hasConflict) {
-          alert(conflict.reason);
-          if (typeof Utils !== 'undefined') Utils.showToast(conflict.reason, 'error');
+        if (conflict && conflict.hasConflict) {
+          if (typeof Utils !== 'undefined') {
+            Utils.showToast(conflict.reason, 'error');
+          } else {
+            alert(conflict.reason);
+          }
           return;
         }
       }
@@ -235,16 +263,34 @@ const TestsPage = {
 
     if (isAdded) {
       cart = cart.filter(i => {
+        if (i.type === 'package' || i.PackageID) return true;
         const iId = String(i.TestID || i.id || i.TestCode || i.code || '');
         const iCode = String(i.TestCode || i.code || '');
         const iName = String(i.TestName || i.name || '');
         return iId !== testId && iCode !== testCode && iName !== testName;
       });
+      if (typeof Utils !== 'undefined') {
+        Utils.showToast(`Removed "${testName}" from cart`, 'info');
+      }
     } else {
-      cart.push({ ...test, type: 'test' });
+      cart.push({
+        ...test,
+        id: testId,
+        TestID: testId,
+        TestCode: testCode,
+        TestName: testName,
+        name: testName,
+        code: testCode,
+        price: Number(test.OfferPrice || test.price || 0),
+        mrp: Number(test.MRP || test.mrp || 0),
+        type: 'test',
+        addedAt: new Date().toISOString()
+      });
+      if (typeof Utils !== 'undefined') {
+        Utils.showToast(`Added "${testName}" to cart`, 'success');
+      }
     }
 
-    // Atomic sync across all storage locations & active user vault
     const cartStr = JSON.stringify(cart);
     localStorage.setItem('cart', cartStr);
     localStorage.setItem('selfcare_cart', cartStr);
@@ -370,8 +416,8 @@ const TestsPage = {
       const paramCount = this.getTestParameterCount(test);
 
       const actionButton = alreadyAdded 
-        ? `<button class="book-btn added-btn" onclick='TestsPage.toggleCart(${JSON.stringify(test)}, event)'>Remove</button>`
-        : `<button class="book-btn add-cart-btn" onclick='TestsPage.toggleCart(${JSON.stringify(test)}, event)'>🛒 Add To Cart</button>`;
+        ? `<button class="book-btn added-btn" onclick="TestsPage.toggleCartById('${Utils.escapeHtml(testId)}', event)">Remove</button>`
+        : `<button class="book-btn add-cart-btn" onclick="TestsPage.toggleCartById('${Utils.escapeHtml(testId)}', event)">🛒 Add To Cart</button>`;
 
       return `
         <div class="test-card glass-card animate-fade">
@@ -504,8 +550,7 @@ const TestsPage = {
           if (searchInput) {
             searchInput.value = transcript;
           }
-          const filtered = this.filterTestsByQuery(transcript);
-          this.renderTests(filtered);
+          this.filterAndRender();
           if (typeof Utils !== 'undefined') {
             Utils.showToast(`Search: "${transcript}"`, 'success');
           }
@@ -547,10 +592,19 @@ const TestsPage = {
   setupEventListeners() {
     const searchInput = document.getElementById('tests-search-input');
     if (searchInput) {
-      searchInput.addEventListener('input', Utils.debounce((e) => {
-        const query = e.target.value;
-        const filtered = this.filterTestsByQuery(query);
-        this.renderTests(filtered);
+      const parentForm = searchInput.closest('form');
+      if (parentForm) {
+        parentForm.addEventListener('submit', (e) => e.preventDefault());
+      }
+
+      searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+        }
+      });
+
+      searchInput.addEventListener('input', Utils.debounce(() => {
+        this.filterAndRender();
       }, 250));
     }
 
@@ -582,9 +636,18 @@ const TestsPage = {
 
   filterAndRender() {
     let filtered = this.allTests;
+
+    const searchInput = document.getElementById('tests-search-input');
+    const query = searchInput ? searchInput.value.trim() : '';
+
+    if (query) {
+      filtered = this.filterTestsByQuery(query);
+    }
+
     if (this.currentCategory && this.currentCategory !== 'All') {
       filtered = filtered.filter(test => test.Category && test.Category.toLowerCase() === this.currentCategory.toLowerCase());
     }
+
     this.renderTests(filtered);
   },
 
@@ -601,8 +664,8 @@ const TestsPage = {
     const alreadyAdded = this.isItemInCart(test.TestID || test.TestCode, test.TestCode, test.TestName);
 
     const actionBtn = alreadyAdded
-      ? `<button class="modal-action-btn remove-btn" onclick='TestsPage.toggleCart(${JSON.stringify(test)}, event); TestsPage.showTestDetails("${testId}");'>🗑️ Remove from Cart</button>`
-      : `<button class="modal-action-btn add-btn" onclick='TestsPage.toggleCart(${JSON.stringify(test)}, event); TestsPage.showTestDetails("${testId}");'>🛒 Add to Cart</button>`;
+      ? `<button class="modal-action-btn remove-btn" onclick="TestsPage.toggleCartById('${Utils.escapeHtml(testId)}', event); TestsPage.showTestDetails('${Utils.escapeHtml(testId)}');">🗑️ Remove from Cart</button>`
+      : `<button class="modal-action-btn add-btn" onclick="TestsPage.toggleCartById('${Utils.escapeHtml(testId)}', event); TestsPage.showTestDetails('${Utils.escapeHtml(testId)}');">🛒 Add to Cart</button>`;
 
     let modal = document.getElementById('test-detail-modal');
     if (!modal) {
@@ -688,7 +751,6 @@ document.addEventListener('DOMContentLoaded', () => {
   TestsPage.init();
 });
 
-// Global Window Exposure for seamless HTML onclick triggers
 if (typeof window !== 'undefined') {
   window.TestsPage = TestsPage;
 }

@@ -1,13 +1,13 @@
 /* file: assets/js/utils.js */
 /**
- * Selfcare Diagnostics - Utilities & Advanced Multi-Tier Conflict Validation Engine v6.5.0
+ * Selfcare Diagnostics - Utilities & Dynamic 2-Tier Sheet Inspection Engine v11.0.0
  * Features:
  * 1. Rupee currency formatting, XSS sanitization, debouncing, online check, and toast notifications.
- * 2. Strict Bi-directional Conflict Validation Engine:
- *    - Rule 1: Package vs Individual Test / Panel.
- *    - Rule 2: Individual Test / Panel vs Package.
- *    - Rule 3: Parent Panel vs Sub-parameter (e.g. CBC vs Hb, KFT vs Creatinine).
- *    - Rule 4: PACKAGE vs PACKAGE Deep Overlap (Blocks adding 2 packages with common panels/tests/parameters).
+ * 2. Strict Bi-directional Dynamic Conflict Validation Engine:
+ *    - Rule 1: Package vs Individual Test (Blocks LFT / GGT / Bilirubin if package has LFT, allows Vitamin D).
+ *    - Rule 2: Individual Test vs Package.
+ *    - Rule 3: Parent Panel vs Sub-parameter (e.g. CBC vs Hb, LFT vs GGT).
+ *    - Rule 4: PACKAGE vs PACKAGE Deep Overlap (Blocks adding 1999 package when 1299 package is in cart).
  */
 
 const Utils = {
@@ -102,107 +102,18 @@ const Utils = {
 
 /**
  * =========================================================================
- * CONFLICT VALIDATOR ENGINE
+ * CONFLICT VALIDATOR ENGINE - DYNAMIC 2-TIER SHEET GRAPH INSPECTION
  * =========================================================================
  */
 const ConflictValidator = {
-  // Parent Panels and constituent sub-tests / parameters
-  panelToParameters: {
-    'CBC': {
-      panelName: 'Complete Blood Count (CBC)',
-      aliases: ['CBC', 'COMPLETE BLOOD COUNT', 'HEMOGRAM', 'COMPLETE HEMOGRAM', 'T0001', 'SCDT0001'],
-      subTests: [
-        'HEMOGLOBIN', 'HB', 'TOTAL WBC', 'TLC', 'WBC', 'WHITE BLOOD CELL',
-        'RBC COUNT', 'RBC', 'RED BLOOD CELL', 'PLATELET COUNT', 'PLATELET', 'PCV',
-        'HEMATOCRIT', 'MCV', 'MCH', 'MCHC', 'RDW', 'RDW-CV', 'RDW-SD',
-        'NEUTROPHIL', 'LYMPHOCYTE', 'MONOCYTE', 'EOSINOPHIL', 'BASOPHIL',
-        'ANC', 'ALC', 'AMC', 'AEC', 'MPV', 'PDW', 'PCT', 'P-LCR'
-      ]
-    },
-    'KFT': {
-      panelName: 'Kidney Function Test (KFT/RFT)',
-      aliases: ['KFT', 'RFT', 'KIDNEY FUNCTION', 'RENAL FUNCTION', 'T0016', 'SCDT0016', 'T0014', 'SCDT0014'],
-      subTests: [
-        'CREATININE', 'SERUM CREATININE', 'UREA', 'BLOOD UREA', 'BUN',
-        'BLOOD UREA NITROGEN', 'URIC ACID', 'URIC ACID SERUM', 'CALCIUM',
-        'PHOSPHORUS', 'ELECTROLYTES', 'SODIUM', 'POTASSIUM', 'CHLORIDE'
-      ]
-    },
-    'LFT': {
-      panelName: 'Liver Function Test (LFT)',
-      aliases: ['LFT', 'LIVER FUNCTION', 'LIVER PANEL', 'HEPATIC FUNCTION', 'T0013', 'SCDT0013'],
-      subTests: [
-        'BILIRUBIN', 'TOTAL BILIRUBIN', 'DIRECT BILIRUBIN', 'INDIRECT BILIRUBIN',
-        'SGOT', 'AST', 'SGPT', 'ALT', 'ALKALINE PHOSPHATASE', 'ALP', 'ALBUMIN',
-        'TOTAL PROTEIN', 'GLOBULIN', 'A/G RATIO'
-      ]
-    },
-    'LIPID': {
-      panelName: 'Lipid Profile',
-      aliases: ['LIPID PROFILE', 'LIPID PANEL', 'CHOLESTEROL PANEL', 'T0012', 'SCDT0012'],
-      subTests: [
-        'CHOLESTEROL', 'TOTAL CHOLESTEROL', 'TRIGLYCERIDES', 'HDL', 'HDL CHOLESTEROL',
-        'LDL', 'LDL CHOLESTEROL', 'VLDL', 'VLDL CHOLESTEROL'
-      ]
-    },
-    'THYROID': {
-      panelName: 'Thyroid Profile (T3, T4, TSH)',
-      aliases: ['THYROID PROFILE', 'THYROID PANEL', 'TOTAL THYROID', 'T3 T4 TSH', 'T0040', 'SCDT0040'],
-      subTests: [
-        'TSH', 'THYROID STIMULATING HORMONE', 'T0037', 'SCDT0037',
-        'T3', 'TOTAL T3', 'FREE T3', 'T4', 'TOTAL T4', 'FREE T4'
-      ]
-    },
-    'DIABETES': {
-      panelName: 'Diabetes Screening Panel',
-      aliases: ['DIABETES PANEL', 'DIABETIC SCREEN', 'DIABETES PROFILE'],
-      subTests: [
-        'FBS', 'FASTING BLOOD SUGAR', 'FASTING GLUCOSE', 'T0008', 'SCDT0008',
-        'PPBS', 'POST PRANDIAL', 'PP GLUCOSE', 'T0009', 'SCDT0009',
-        'HBA1C', 'GLYCATED HEMOGLOBIN', 'T0011', 'SCDT0011'
-      ]
-    },
-    'PBS': {
-      panelName: 'Peripheral Blood Smear',
-      aliases: ['PERIPHERAL BLOOD SMEAR', 'PERIPHERAL SMEAR', 'PBS', 'T0005', 'SCDT0005'],
-      subTests: [
-        'RBC MORPHOLOGY', 'WBC MORPHOLOGY', 'PLATELET MORPHOLOGY'
-      ]
-    }
-  },
-
-  // Health Packages definitions
-  packageDefinitions: {
-    'PKG001': {
-      name: 'Selfcare Basic Health Panel',
-      aliases: ['PKG001', 'SCDPACK001', 'SCD001', 'BASIC HEALTH', 'BASIC WELLNESS'],
-      panels: ['CBC', 'LIPID'],
-      standalone: ['FBS', 'FASTING BLOOD SUGAR', 'URINE ROUTINE', 'T0008', 'T0046']
-    },
-    'PKG002': {
-      name: 'Selfcare Premium Health Panel',
-      aliases: ['PKG002', 'SCDPACK002', 'SCD002', 'PREMIUM HEALTH', 'PREMIUM PACKAGE'],
-      panels: ['CBC', 'LFT', 'KFT', 'LIPID'],
-      standalone: ['TSH', 'FBS', 'FASTING BLOOD SUGAR', 'URINE ROUTINE', 'T0008', 'T0037', 'T0046']
-    },
-    'PKG003': {
-      name: 'Selfcare Elite Health Panel',
-      aliases: ['PKG003', 'SCDPACK003', 'SCD003', 'ELITE HEALTH', 'ELITE PANEL'],
-      panels: ['CBC', 'LFT', 'KFT', 'LIPID', 'THYROID'],
-      standalone: ['VITAMIN D', 'VITAMIN B12', 'HBA1C', 'T0011', 'T0034', 'T0035']
-    },
-    'FULL_BODY': {
-      name: 'Full Body Health Package',
-      aliases: ['FULL BODY', 'HEALTH PACKAGE', 'SELFCARE PACKAGE', 'MASTER HEALTH', 'EXECUTIVE HEALTH', 'COMPREHENSIVE HEALTH'],
-      panels: ['CBC', 'LFT', 'KFT', 'LIPID', 'THYROID', 'DIABETES'],
-      standalone: ['URINE ROUTINE', 'VITAMIN D', 'VITAMIN B12', 'HBA1C', 'ESR']
-    },
-    'PKG010': {
-      name: 'Fever Advanced Panel',
-      aliases: ['PKG010', 'FEVER ADVANCED'],
-      panels: ['CBC'],
-      standalone: ['ESR', 'CRP', 'MALARIA', 'WIDAL', 'T0002', 'T0041', 'T0043M', 'T0051W']
-    }
+  // Common Organ Panel Clinical Alias Groups
+  panelAliases: {
+    'LFT': ['lft', 'liver function test', 'liver function', 'liver panel', 'hepatic function', 'liver profile', 't0013', 'scdt0013'],
+    'CBC': ['cbc', 'complete blood count', 'hemogram', 'complete hemogram', 'haemogram', 't0001', 'scdt0001'],
+    'KFT': ['kft', 'rft', 'kidney function test', 'renal function test', 'kidney function', 'renal function', 'kidney panel', 'renal panel', 't0016', 't0014', 'scdt0016', 'scdt0014'],
+    'LIPID': ['lipid profile', 'lipid panel', 'cholesterol panel', 'lipid screen', 'lipids', 't0012', 'scdt0012'],
+    'THYROID': ['thyroid profile', 'thyroid panel', 'total thyroid', 't3 t4 tsh', 'thyroid function', 't0040', 'scdt0040'],
+    'DIABETES': ['diabetes profile', 'diabetic screen', 'diabetes panel', 'blood sugar profile']
   },
 
   isPackage(item) {
@@ -231,68 +142,148 @@ const ConflictValidator = {
     return code === 'T0015' || name.includes('RETICULOCYTE');
   },
 
-  extractTestIds(pkg) {
-    if (!pkg) return [];
-    const raw = pkg.TestIDs || pkg.testIds || pkg.TestCodeList || pkg.tests || '';
-    if (Array.isArray(raw)) {
-      return raw.map(id => String(id).trim().toUpperCase()).filter(Boolean);
-    }
-    if (typeof raw === 'string') {
-      return raw.split(/[,;|/\n]/).map(s => s.trim().toUpperCase()).filter(Boolean);
-    }
-    return [];
-  },
-
-  extractParameters(pkg) {
-    if (!pkg) return [];
-    const raw = pkg.Parameters || pkg.parameters || pkg.Description || '';
-    let items = [];
-    if (Array.isArray(raw)) {
-      items = raw.flatMap(p => {
-        const str = typeof p === 'object' && p !== null ? (p.Name || p.ParameterName || p.TestName || '') : String(p);
-        return str.split(/[;,|\n•]|<br\s*[\/]?>/i).map(s => s.trim().toUpperCase()).filter(s => s.length > 2);
-      });
-    } else if (typeof raw === 'string') {
-      items = raw.split(/[;,|\n•]|<br\s*[\/]?>/i).map(s => s.trim().toUpperCase()).filter(s => s.length > 2);
-    }
-    return items;
-  },
-
-  normalizeName(str) {
+  cleanStr(str) {
     return String(str || '')
       .toLowerCase()
-      .replace(/\(.*?\)/g, '')
-      .replace(/[^a-z0-9]/g, '')
+      .replace(/[;,/|•\n\t()\-]/g, ' ')
+      .replace(/\s+/g, ' ')
       .trim();
   },
 
-  matchesPanel(item, panelKey) {
-    const p = this.panelToParameters[panelKey];
-    if (!p) return false;
-    const name = (item.TestName || item.PackageName || item.name || '').toUpperCase();
-    const code = (item.TestCode || item.PackageCode || item.code || '').toUpperCase();
-    return p.aliases.some(alias => name.includes(alias) || code === alias);
+  getAllSheetTests() {
+    try {
+      const raw = localStorage.getItem('cache_tests') || localStorage.getItem('selfcare_tests_db');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {}
+    return [];
   },
 
-  matchesSubTestOfPanel(item, panelKey) {
-    const p = this.panelToParameters[panelKey];
-    if (!p) return false;
+  findFullPackageFromSheet(cartPkg) {
+    try {
+      const raw = localStorage.getItem('cache_packages') || localStorage.getItem('selfcare_packages_db');
+      if (raw) {
+        const pkgs = JSON.parse(raw);
+        const pId = String(cartPkg.PackageID || cartPkg.id || cartPkg.PackageCode || cartPkg.code || '').toUpperCase().trim();
+        const pName = String(cartPkg.PackageName || cartPkg.TestName || cartPkg.name || '').toUpperCase().trim();
 
-    if (this.isReticulocyte(item)) return false;
+        const found = pkgs.find(p => {
+          const cId = String(p.PackageID || p.id || p.PackageCode || '').toUpperCase().trim();
+          const cName = String(p.PackageName || p.name || '').toUpperCase().trim();
+          return (pId && cId === pId) || (pName && cName === pName);
+        });
 
-    const name = (item.TestName || item.PackageName || item.name || '').toUpperCase();
-    const code = (item.TestCode || item.PackageCode || item.code || '').toUpperCase();
+        if (found) return found;
+      }
+    } catch (e) {}
+    return cartPkg;
+  },
 
-    if (this.matchesPanel(item, panelKey)) return false;
+  extractPackageConstituents(pkg) {
+    const fullPkg = this.findFullPackageFromSheet(pkg);
+    const raw = fullPkg.Parameters || fullPkg.parameters || fullPkg.Description || fullPkg.WhyDone || '';
+    const rawTestIds = fullPkg.TestIDs || fullPkg.testIds || fullPkg.TestCodeList || fullPkg.tests || '';
 
-    return p.subTests.some(sub => {
-      const regex = new RegExp(`(^|[^A-Z0-9])${sub}([^A-Z0-9]|$)`, 'i');
-      return regex.test(name) || code === sub;
-    });
+    let items = [];
+
+    if (Array.isArray(raw)) {
+      items.push(...raw.map(r => typeof r === 'object' && r !== null ? (r.Name || r.ParameterName || r.TestName || '') : String(r)));
+    } else if (typeof raw === 'string') {
+      items.push(...raw.split(/[;,|\n•]|<br\s*[\/]?>/i));
+    }
+
+    if (Array.isArray(rawTestIds)) {
+      items.push(...rawTestIds);
+    } else if (typeof rawTestIds === 'string') {
+      items.push(...rawTestIds.split(/[,;|/\n]/));
+    }
+
+    return items
+      .map(i => String(i).trim())
+      .filter(i => i.length > 1);
   },
 
   /**
-   * Bi-directional conflict validation between new item and cart
+   * Determines if two test names or codes represent the exact same Organ Panel (e.g. "LFT" vs "Liver Function Test")
+   */
+  isSameOrganPanel(nameA, codeA, nameB, codeB) {
+    const cleanA = this.cleanStr(nameA);
+    const cleanB = this.cleanStr(nameB);
+    const cA = String(codeA || '').toUpperCase();
+    const cB = String(codeB || '').toUpperCase();
+
+    if (cA && cB && cA === cB) return true;
+    if (cleanA && cleanB && cleanA === cleanB) return true;
+
+    for (const key of Object.keys(this.panelAliases)) {
+      const aliases = this.panelAliases[key];
+      const aMatches = aliases.some(alias => cleanA === alias || cleanA.includes(alias) || cA === alias.toUpperCase());
+      const bMatches = aliases.some(alias => cleanB === alias || cleanB.includes(alias) || cB === alias.toUpperCase());
+      if (aMatches && bMatches) {
+        return true;
+      }
+    }
+    return false;
+  },
+
+  /**
+   * Reads BloodTests Sheet row for a panel and returns all its dynamic sub-parameters
+   */
+  getDeepParametersForSheetTest(constituentName, allSheetTests) {
+    if (!constituentName || !Array.isArray(allSheetTests) || allSheetTests.length === 0) {
+      return { parentTest: null, subParameters: [] };
+    }
+
+    const cClean = this.cleanStr(constituentName);
+    const cUpper = constituentName.toUpperCase().trim();
+
+    const matchedTest = allSheetTests.find(t => {
+      const tName = String(t.TestName || '').trim();
+      const tCode = String(t.TestCode || t.TestID || '').toUpperCase().trim();
+      const tClean = this.cleanStr(tName);
+
+      if (tCode && tCode === cUpper) return true;
+      if (tClean === cClean) return true;
+
+      for (const key of Object.keys(this.panelAliases)) {
+        const aliases = this.panelAliases[key];
+        const cMatches = aliases.some(a => cClean === a || cClean.includes(a) || cUpper === a.toUpperCase());
+        const tMatches = aliases.some(a => tClean === a || tClean.includes(a) || tCode === a.toUpperCase());
+        if (cMatches && tMatches) return true;
+      }
+
+      const reg = new RegExp(`(^|[^a-z0-9])${cClean}([^a-z0-9]|$)`, 'i');
+      return reg.test(tClean);
+    });
+
+    if (!matchedTest) {
+      return { parentTest: null, subParameters: [] };
+    }
+
+    const rawParams = matchedTest.Parameters || matchedTest.Description || '';
+    let subParams = [];
+
+    if (Array.isArray(rawParams)) {
+      subParams = rawParams.map(p => String(p).trim());
+    } else if (typeof rawParams === 'string') {
+      subParams = rawParams.split(/[;,|\n•]|<br\s*[\/]?>/i).map(p => p.trim());
+    }
+
+    const matchedCode = String(matchedTest.TestCode || matchedTest.TestID || '').toUpperCase();
+    if (matchedCode === 'T0001' || this.cleanStr(matchedTest.TestName).includes('cbc')) {
+      subParams.push('Hemoglobin', 'Hb', 'Total WBC', 'TLC', 'WBC', 'RBC', 'Platelet', 'PCV', 'MCV', 'MCH', 'MCHC', 'RDW', 'Neutrophils', 'Lymphocytes', 'Monocytes', 'Eosinophils', 'Basophils');
+    }
+
+    return {
+      parentTest: matchedTest,
+      subParameters: subParams.filter(p => p && p.length > 1)
+    };
+  },
+
+  /**
+   * Bi-directional Dynamic Conflict Engine
    */
   checkConflict(newItem, cart) {
     if (!newItem || !Array.isArray(cart) || cart.length === 0) {
@@ -303,181 +294,192 @@ const ConflictValidator = {
       return { hasConflict: false, reason: '' };
     }
 
+    const allSheetTests = this.getAllSheetTests();
     const newIsPkg = this.isPackage(newItem);
-    const newName = newItem.TestName || newItem.PackageName || newItem.name || 'Selected Item';
-    const newUpper = newName.toUpperCase();
+    const newName = newItem.TestName || newItem.PackageName || newItem.name || 'Selected Test';
+    const newNameClean = this.cleanStr(newName);
     const newCode = (newItem.TestCode || newItem.PackageCode || newItem.PackageID || newItem.code || '').toUpperCase().replace(/[\s\-_]/g, '');
-
-    // Match package key
-    let newPkgKey = Object.keys(this.packageDefinitions).find(k => {
-      const p = this.packageDefinitions[k];
-      return p.aliases.some(a => newCode === a.replace(/[\s\-_]/g, '') || newUpper.includes(a));
-    });
-    if (newIsPkg && !newPkgKey) newPkgKey = 'FULL_BODY';
 
     for (const cartItem of cart) {
       if (this.isReticulocyte(cartItem)) continue;
 
       const cartIsPkg = this.isPackage(cartItem);
-      const cartName = cartItem.TestName || cartItem.PackageName || cartItem.name || 'Cart Item';
-      const cartUpper = cartName.toUpperCase();
-      const cartCode = (cartItem.TestCode || cartItem.PackageCode || cartItem.PackageID || cartItem.code || '').toUpperCase().replace(/[\s\-_]/g, '');
-
-      let cartPkgKey = Object.keys(this.packageDefinitions).find(k => {
-        const p = this.packageDefinitions[k];
-        return p.aliases.some(a => cartCode === a.replace(/[\s\-_]/g, '') || cartUpper.includes(a));
-      });
-      if (cartIsPkg && !cartPkgKey) cartPkgKey = 'FULL_BODY';
+      const cartName = cartItem.TestName || cartItem.PackageName || cartItem.name || 'Package';
+      const cartNameClean = this.cleanStr(cartName);
 
       // =========================================================================
-      // RULE 4: PACKAGE vs PACKAGE CONFLICT (Rendu Packages-la common tests irundha block)
+      // RULE 4: PACKAGE vs PACKAGE CONFLICT (e.g. 1299 Package vs 1999 Package)
       // =========================================================================
       if (cartIsPkg && newIsPkg) {
-        // 4A: Definition Panels overlap check (e.g. Both have CBC, LFT, Lipid, etc.)
-        if (cartPkgKey && newPkgKey) {
-          const cartDef = this.packageDefinitions[cartPkgKey];
-          const newDef = this.packageDefinitions[newPkgKey];
-
-          const overlappingPanels = (cartDef.panels || []).filter(p => (newDef.panels || []).includes(p));
-          if (overlappingPanels.length > 0) {
-            const panelNames = overlappingPanels.map(p => this.panelToParameters[p]?.panelName || p).join(', ');
-            return {
-              hasConflict: true,
-              reason: `⚠️ Package Conflict: "${newName}" contains common panels (${panelNames}) already included in "${cartName}". You cannot add both packages simultaneously.`
-            };
-          }
-
-          const overlappingStandalone = (cartDef.standalone || []).filter(s => (newDef.standalone || []).includes(s));
-          if (overlappingStandalone.length > 0) {
-            return {
-              hasConflict: true,
-              reason: `⚠️ Package Conflict: "${newName}" contains tests already included in "${cartName}".`
-            };
-          }
-        }
-
-        // 4B: Dynamic TestIDs Overlap Check from Backend
-        const newTestIds = this.extractTestIds(newItem);
-        const cartTestIds = this.extractTestIds(cartItem);
-        const commonTestIds = newTestIds.filter(id => id && cartTestIds.includes(id));
-        if (commonTestIds.length > 0) {
+        // 1. Direct Same Package Check
+        const cartCode = (cartItem.PackageCode || cartItem.PackageID || cartItem.TestCode || cartItem.code || '').toUpperCase().replace(/[\s\-_]/g, '');
+        if (newCode && cartCode && newCode === cartCode) {
           return {
             hasConflict: true,
-            reason: `⚠️ Package Conflict: "${newName}" and "${cartName}" share common tests (${commonTestIds.slice(0, 3).join(', ')}).`
+            reason: `⚠️ "${newName}" is already in your cart.`
           };
         }
 
-        // 4C: Dynamic Parameters / Test Names Overlap Check
-        const newParams = this.extractParameters(newItem);
-        const cartParams = this.extractParameters(cartItem);
-        const commonParams = [];
+        // 2. Overlapping Constituents / Panels Check (CBC, LFT, KFT, Lipid Profile, etc.)
+        const cartConstituents = this.extractPackageConstituents(cartItem);
+        const newConstituents = this.extractPackageConstituents(newItem);
+        const commonOverlaps = [];
 
-        for (const np of newParams) {
-          const normNp = this.normalizeName(np);
-          if (normNp.length < 3) continue;
-          for (const cp of cartParams) {
-            const normCp = this.normalizeName(cp);
-            if (normCp.length < 3) continue;
-            if (normNp === normCp || (normNp.length > 4 && normCp.includes(normNp)) || (normCp.length > 4 && normNp.includes(normCp))) {
-              if (!commonParams.includes(np)) commonParams.push(np);
+        for (const cItem of cartConstituents) {
+          const cClean = this.cleanStr(cItem);
+          for (const nItem of newConstituents) {
+            const nClean = this.cleanStr(nItem);
+
+            if (cClean === nClean || this.isSameOrganPanel(cItem, '', nItem, '')) {
+              const displayName = cItem.toUpperCase();
+              if (!commonOverlaps.includes(displayName)) {
+                commonOverlaps.push(displayName);
+              }
             }
           }
         }
 
-        if (commonParams.length > 0) {
+        if (commonOverlaps.length > 0) {
           return {
             hasConflict: true,
-            reason: `⚠️ Package Conflict: "${newName}" contains parameters (${commonParams.slice(0, 2).join(', ')}) already covered in "${cartName}".`
+            reason: `⚠️ Package Conflict: "${newName}" contains common panels/tests (${commonOverlaps.slice(0, 3).join(', ')}) already included in "${cartName}". You cannot add two health packages simultaneously.`
           };
         }
+
+        // 3. Fallback: Both are comprehensive checkups (Prevent duplicate phlebotomy home visits)
+        return {
+          hasConflict: true,
+          reason: `⚠️ Package Conflict: Your cart already has "${cartName}". Please remove it first to select "${newName}".`
+        };
       }
 
       // =========================================================================
-      // RULE 1: Cart-la Package irukku -> Individual Panel / Test add panna koodathu
+      // RULE 1: Cart-la Package irukku -> Individual Test add panna try pannumbodhu
       // =========================================================================
-      if (cartIsPkg && !newIsPkg && cartPkgKey) {
-        const pkgDef = this.packageDefinitions[cartPkgKey];
+      if (cartIsPkg && !newIsPkg) {
+        const pkgConstituents = this.extractPackageConstituents(cartItem);
 
-        for (const pKey of pkgDef.panels) {
-          if (this.matchesPanel(newItem, pKey)) {
+        for (const constituent of pkgConstituents) {
+          const itemClean = this.cleanStr(constituent);
+          const itemCode = constituent.toUpperCase().replace(/[\s\-_]/g, '');
+
+          // LEVEL 1: Whole Panel Block (Package has LFT -> User tries to add "LFT")
+          if (newCode && (newCode === itemCode || newCode === constituent.toUpperCase())) {
             return {
               hasConflict: true,
               reason: `⚠️ "${newName}" already included in "${cartName}" package in your cart.`
             };
           }
-          if (this.matchesSubTestOfPanel(newItem, pKey)) {
-            const panelTitle = this.panelToParameters[pKey].panelName;
+
+          if (this.isSameOrganPanel(constituent, itemCode, newName, newCode)) {
             return {
               hasConflict: true,
-              reason: `⚠️ "${newName}" is already covered under "${panelTitle}" in "${cartName}" package.`
+              reason: `⚠️ "${newName}" already included in "${cartName}" package in your cart.`
             };
+          }
+
+          // LEVEL 2: Dynamic Sheet Sub-parameters Block (Package has LFT -> Blocks GGT, Bilirubin, SGOT, SGPT, ALP)
+          const { parentTest, subParameters } = this.getDeepParametersForSheetTest(constituent, allSheetTests);
+
+          if (parentTest) {
+            const parentName = parentTest.TestName || constituent;
+
+            if (this.isSameOrganPanel(parentName, parentTest.TestCode, newName, newCode)) {
+              return {
+                hasConflict: true,
+                reason: `⚠️ "${newName}" already included in "${cartName}" package in your cart.`
+              };
+            }
+
+            for (const param of subParameters) {
+              const paramClean = this.cleanStr(param);
+              const regexMatch = new RegExp(`(^|[^a-z0-9])${paramClean}([^a-z0-9]|$)`, 'i').test(newNameClean);
+              const reverseRegexMatch = new RegExp(`(^|[^a-z0-9])${newNameClean}([^a-z0-9]|$)`, 'i').test(paramClean);
+
+              if (paramClean === newNameClean || regexMatch || reverseRegexMatch) {
+                return {
+                  hasConflict: true,
+                  reason: `⚠️ "${newName}" is already covered under "${parentName}" in "${cartName}" package.`
+                };
+              }
+            }
           }
         }
 
-        const matchesStandalone = (pkgDef.standalone || []).some(term => {
-          const regex = new RegExp(`(^|[^A-Z0-9])${term}([^A-Z0-9]|$)`, 'i');
-          return regex.test(newUpper) || newCode === term;
-        });
-
-        if (matchesStandalone) {
-          return {
-            hasConflict: true,
-            reason: `⚠️ "${newName}" is already covered in "${cartName}" package in your cart.`
-          };
-        }
+        // LEVEL 3: Vitamin D package-lum illa, LFT parameters-lum illa என்பதால் ALLOW!
+        continue;
       }
 
       // =========================================================================
-      // RULE 2: Cart-la Test / Panel irukku -> Package add panna koodathu
+      // RULE 2: Cart-la Test irukku -> Package add panna try pannumbodhu
       // =========================================================================
-      if (!cartIsPkg && newIsPkg && newPkgKey) {
-        const pkgDef = this.packageDefinitions[newPkgKey];
+      if (!cartIsPkg && newIsPkg) {
+        const pkgConstituents = this.extractPackageConstituents(newItem);
 
-        for (const pKey of pkgDef.panels) {
-          if (this.matchesPanel(cartItem, pKey)) {
+        for (const constituent of pkgConstituents) {
+          const itemClean = this.cleanStr(constituent);
+          const itemCode = constituent.toUpperCase().replace(/[\s\-_]/g, '');
+          const cartCode = (cartItem.TestCode || cartItem.code || '').toUpperCase().replace(/[\s\-_]/g, '');
+
+          if (this.isSameOrganPanel(constituent, itemCode, cartName, cartCode)) {
             return {
               hasConflict: true,
               reason: `⚠️ Your cart already has "${cartName}". Please remove it first to add "${newName}".`
             };
           }
-          if (this.matchesSubTestOfPanel(cartItem, pKey)) {
-            return {
-              hasConflict: true,
-              reason: `⚠️ Your cart has "${cartName}" which is included in "${newName}". Please remove "${cartName}" first.`
-            };
+
+          const { parentTest, subParameters } = this.getDeepParametersForSheetTest(constituent, allSheetTests);
+
+          if (parentTest && subParameters.length > 0) {
+            const parentName = parentTest.TestName || constituent;
+
+            for (const param of subParameters) {
+              const paramClean = this.cleanStr(param);
+              const regexMatch = new RegExp(`(^|[^a-z0-9])${paramClean}([^a-z0-9]|$)`, 'i').test(cartNameClean);
+              const reverseRegexMatch = new RegExp(`(^|[^a-z0-9])${cartNameClean}([^a-z0-9]|$)`, 'i').test(paramClean);
+
+              if (paramClean === cartNameClean || regexMatch || reverseRegexMatch) {
+                return {
+                  hasConflict: true,
+                  reason: `⚠️ Your cart has "${cartName}" which is already included under "${parentName}" in "${newName}". Please remove "${cartName}" first.`
+                };
+              }
+            }
           }
-        }
-
-        const matchesStandalone = (pkgDef.standalone || []).some(term => {
-          const regex = new RegExp(`(^|[^A-Z0-9])${term}([^A-Z0-9]|$)`, 'i');
-          return regex.test(cartUpper) || cartCode === term;
-        });
-
-        if (matchesStandalone) {
-          return {
-            hasConflict: true,
-            reason: `⚠️ Your cart already has "${cartName}". Please remove it first to add "${newName}".`
-          };
         }
       }
 
       // =========================================================================
-      // RULE 3: Panel vs Sub-parameter (CBC vs Hb, RFT vs Creatinine, LFT vs SGPT)
+      // RULE 3: Panel vs Sub-parameter (e.g. Cart-la LFT irundhu GGT add pannaal)
       // =========================================================================
       if (!cartIsPkg && !newIsPkg) {
-        for (const pKey of Object.keys(this.panelToParameters)) {
-          if (this.matchesPanel(cartItem, pKey) && this.matchesSubTestOfPanel(newItem, pKey)) {
-            return {
-              hasConflict: true,
-              reason: `⚠️ "${newName}" is already included inside "${cartName}" in your cart.`
-            };
+        const cartDeep = this.getDeepParametersForSheetTest(cartName, allSheetTests);
+        if (cartDeep.parentTest && cartDeep.subParameters.length > 0) {
+          for (const param of cartDeep.subParameters) {
+            const paramClean = this.cleanStr(param);
+            if (paramClean === newNameClean || 
+                new RegExp(`(^|[^a-z0-9])${paramClean}([^a-z0-9]|$)`, 'i').test(newNameClean) ||
+                new RegExp(`(^|[^a-z0-9])${newNameClean}([^a-z0-9]|$)`, 'i').test(paramClean)) {
+              return {
+                hasConflict: true,
+                reason: `⚠️ "${newName}" is already covered inside "${cartName}" in your cart.`
+              };
+            }
           }
+        }
 
-          if (this.matchesSubTestOfPanel(cartItem, pKey) && this.matchesPanel(newItem, pKey)) {
-            return {
-              hasConflict: true,
-              reason: `⚠️ Cart-la already "${cartName}" irukku. Complete "${newName}" add panna first "${cartName}"-ah cart-la irunthu remove pannunga.`
-            };
+        const newDeep = this.getDeepParametersForSheetTest(newName, allSheetTests);
+        if (newDeep.parentTest && newDeep.subParameters.length > 0) {
+          for (const param of newDeep.subParameters) {
+            const paramClean = this.cleanStr(param);
+            if (paramClean === cartNameClean || 
+                new RegExp(`(^|[^a-z0-9])${paramClean}([^a-z0-9]|$)`, 'i').test(cartNameClean) ||
+                new RegExp(`(^|[^a-z0-9])${cartNameClean}([^a-z0-9]|$)`, 'i').test(paramClean)) {
+              return {
+                hasConflict: true,
+                reason: `⚠️ Cart-la already "${cartName}" irukku. Complete "${newName}" add panna first "${cartName}"-ah cart-la irunthu remove pannunga.`
+              };
+            }
           }
         }
       }
