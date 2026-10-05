@@ -1,15 +1,15 @@
 /* file: service-worker.js */
 /**
- * Selfcare Diagnostics - Service Worker v6.0.0
+ * Selfcare Diagnostics - Service Worker v6.1.0
  * Features:
- * - Versioned cache invalidation (v6.0.0 for full Admin OS & Cart 3D updates)
+ * - Versioned cache invalidation (v6.1.0 for Dynamic Backend Parameters & Cart Conflict Engine)
  * - Complete precache including admin.css & admin.js
  * - Smart localhost/dev bypass
  * - Network-First for HTML & versioned assets (?v=...)
  * - Instant client claim
  */
 
-const CACHE_NAME = 'selfcare-cache-v6.0.0';
+const CACHE_NAME = 'selfcare-cache-v6.1.0';
 
 // Complete base URLs precached for seamless offline PWA access
 const ASSETS_TO_CACHE = [
@@ -37,7 +37,7 @@ const ASSETS_TO_CACHE = [
   '/assets/css/reports.css',
   '/assets/css/bookings.css',
   '/assets/css/profile.css',
-  '/assets/css/admin.css', // 🟢 Added
+  '/assets/css/admin.css',
   '/assets/js/config.js',
   '/assets/js/api.js',
   '/assets/js/utils.js',
@@ -54,14 +54,14 @@ const ASSETS_TO_CACHE = [
   '/assets/js/reports.js',
   '/assets/js/bookings.js',
   '/assets/js/profile.js',
-  '/assets/js/admin.js', // 🟢 Added
+  '/assets/js/admin.js',
   '/assets/images/logo.png',
   '/assets/images/icon-192.png',
   '/assets/images/icon-512.png'
 ];
 
 self.addEventListener('install', (event) => {
-  console.log('[Selfcare SW] Installing version 6.0.0...');
+  console.log('[Selfcare SW] Installing version 6.1.0...');
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
       const cachePromises = ASSETS_TO_CACHE.map(async (url) => {
@@ -80,7 +80,7 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
-  console.log('[Selfcare SW] Activating version 6.0.0...');
+  console.log('[Selfcare SW] Activating version 6.1.0...');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
@@ -92,7 +92,7 @@ self.addEventListener('activate', (event) => {
         })
       );
     }).then(() => {
-      console.log('[Selfcare SW] Claimed clients for v6.0.0');
+      console.log('[Selfcare SW] Claimed clients for v6.1.0');
       return self.clients.claim();
     })
   );
