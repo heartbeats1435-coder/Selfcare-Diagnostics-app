@@ -6,6 +6,7 @@
  * - 3D Glassmorphic Patient Selection Chips with Pop Animation & Zero Overflow
  * - High-end Glowing "Tap to select" Glass Pill Badge
  * - Premium 3D Glassmorphism Modal Styles for UPI Gateway
+ * - Dual Separate Add-on Action Buttons (Tests & Packages)
  */
 
 :root {
@@ -597,7 +598,7 @@ body.glass-bg-body {
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
-  padding-right: 14px; /* Space for the checkmark badge */
+  padding-right: 14px;
   letter-spacing: -0.2px;
 }
 
@@ -871,19 +872,64 @@ body.glass-bg-body {
   box-shadow: 0 4px 14px rgba(7, 136, 102, 0.05);
 }
 
-.add-more-tests-glass-bar {
+/* Dual Add-on Buttons Grid (Tests & Packages) */
+.add-more-actions-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.add-action-btn {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 12px 14px;
+  justify-content: space-between;
+  padding: 11px 13px;
   border-radius: 12px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+  background: transparent;
+  outline: none;
+}
+
+.add-action-btn:active {
+  transform: scale(0.97);
+}
+
+/* Individual Tests Button Theme (Emerald Green) */
+.add-action-btn.test-btn {
   border: 1.5px dashed var(--primary-green);
   background: rgba(7, 136, 102, 0.06);
   color: var(--dark-green);
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  margin-top: 8px;
+}
+
+.add-action-btn.test-btn:active {
+  background: rgba(7, 136, 102, 0.14);
+}
+
+/* Health Packages Button Theme (Blue Accent) */
+.add-action-btn.pkg-btn {
+  border: 1.5px dashed #0284C7;
+  background: rgba(2, 132, 199, 0.06);
+  color: #0369A1;
+}
+
+.add-action-btn.pkg-btn:active {
+  background: rgba(2, 132, 199, 0.14);
+}
+
+.add-action-btn .btn-arrow {
+  font-size: 15px;
+  font-weight: 900;
+  opacity: 0.7;
+}
+
+@media (max-width: 340px) {
+  .add-more-actions-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .order-summary-3d-card {

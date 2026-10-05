@@ -1,13 +1,14 @@
 /* file: customer.css */
 /**
- * Selfcare Diagnostics - Premium Customer Dashboard CSS v5.7.0
+ * Selfcare Diagnostics - Premium Customer Dashboard CSS v5.8.0
  * 100% Tests Page Visual Parity: 2-Column Tests Grid, Fasting Pills,
  * Know-More Purple Link, Unified Action Buttons & Full 3D Parameter Modals.
  * Includes:
- * 1. High-Contrast Vibrant Confirm Action Button for Prescription Modal
- * 2. Packages vs Tests Distinct Badges ([📦 Package] vs [🧪 Test])
- * 3. "+ Add More Tests or Packages Manually" Live Search & Dropdown
- * 4. Real-time Total Calculation Banner
+ * 1. Compact Native Web Share Button inside Test & Package Card Header (.card-share-btn)
+ * 2. High-Contrast Vibrant Confirm Action Button for Prescription Modal
+ * 3. Packages vs Tests Distinct Badges ([📦 Package] vs [🧪 Test])
+ * 4. "+ Add More Tests or Packages Manually" Live Search & Dropdown
+ * 5. Real-time Total Calculation Banner
  */
 
 :root {
@@ -437,6 +438,15 @@ body {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 2px;
+  gap: 6px;
+}
+
+.test-card-badge-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  min-width: 0;
 }
 
 .test-card-top h4 {
@@ -452,6 +462,70 @@ body {
   font-weight: 700;
   color: #536E66;
   text-transform: uppercase;
+}
+
+/* ==========================================================================
+   CARD SHARE BUTTON (COMPACT, TOP-RIGHT, MOBILE TOUCH OPTIMIZED)
+   ========================================================================= */
+.card-share-btn {
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
+  min-height: 26px;
+  border-radius: 50%;
+  background: rgba(7, 136, 102, 0.08);
+  border: 1px solid rgba(7, 136, 102, 0.2);
+  color: var(--dark-green);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  flex-shrink: 0;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  z-index: 5;
+}
+
+.card-share-btn:hover {
+  background: rgba(7, 136, 102, 0.16);
+  border-color: var(--primary-green);
+  color: var(--primary-green);
+  transform: scale(1.08);
+}
+
+.card-share-btn:active {
+  transform: scale(0.90);
+  background: rgba(7, 136, 102, 0.25);
+}
+
+.card-share-btn svg {
+  width: 13px;
+  height: 13px;
+  pointer-events: none;
+}
+
+/* Modal Header Share Button */
+.modal-share-btn {
+  background: rgba(255, 255, 255, 0.16) !important;
+  border: 1px solid rgba(255, 255, 255, 0.28) !important;
+  color: #FFFFFF !important;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+}
+
+.modal-share-btn:hover {
+  background: rgba(255, 255, 255, 0.28) !important;
+  color: #FFFFFF !important;
+  transform: scale(1.06);
+}
+
+.modal-share-btn svg {
+  width: 14px;
+  height: 14px;
 }
 
 /* Card Box Parameters Count Badge */
