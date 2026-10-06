@@ -1,12 +1,14 @@
 /* file: assets/js/cart.js */
 /**
- * Selfcare Diagnostics - Slide-by-Slide Wizard Engine v8.3.0
+ * Selfcare Diagnostics - Slide-by-Slide Wizard Engine v9.0.0
  * Features:
- * 1. Slide 1 has both Cart Items & Patient Selection engine.
- * 2. Slide 2 has Collection Address & Appointment Schedule slots.
- * 3. Mobile Number Editing inside Edit Address & GPS modal.
- * 4. Unified 3D Patient Card with dedicated + Add Tests / + Add Packages buttons.
- * 5. Automatic Session State Persistence (Slide & selections remembered).
+ * 1. Multi-Patient Backend Auto-Split: Generates dedicated unique Booking IDs 
+ *    per family member (e.g. SCDBOOK100001-1 for Self, SCDBOOK100001-2 for Jazeerah) 
+ *    in both Google Sheets Backend and Local Database.
+ * 2. Unified Single-Click Checkout: User pays once (UPI/Cash), but backend stores individual records.
+ * 3. Slide 1 has both Cart Items & Patient Selection engine.
+ * 4. Slide 2 has Collection Address & Appointment Schedule slots with Mobile Editing.
+ * 5. Unified 3D Patient Card with dedicated + Add Tests / + Add Packages buttons.
  * 6. Dynamic Conflict Validation during Test Reassignment.
  * 7. Multi-Patient Verification Modal & Grouped WhatsApp Booking Summary.
  * 8. Direct UPI Gateway + Fallback Link Integration.
@@ -101,6 +103,14 @@ const CartPage = {
     }
   },
 
+  safeShowToast(message, type = 'info') {
+    if (typeof Utils !== 'undefined' && Utils.showToast) {
+      Utils.showToast(message, type);
+    } else {
+      alert(message);
+    }
+  },
+
   // ==========================================================
   // WIZARD STATE PERSISTENCE HELPERS
   // ==========================================================
@@ -178,42 +188,38 @@ const CartPage = {
 
   // ==========================================================
   // SLIDE-BY-SLIDE WIZARD NAVIGATION
-  // Slide 1: Patient Selection, Tests & Summary
-  // Slide 2: Address & Schedule
-  // Slide 3: Payment & Offers
-  // Slide 4: Collection Mode
   // ==========================================================
   goToSlide(slideIndex, force = false) {
     if (slideIndex < 1 || slideIndex > this.totalSlides) return;
 
     if (this.isAddonMode && slideIndex < 3) {
-      Utils.showToast('Patient details and collection mode are locked to this booking', 'info');
+      this.safeShowToast('Patient details and collection mode are locked to this booking', 'info');
       return;
     }
 
     if (!force && !this.isAddonMode) {
       if (slideIndex > 1) {
         if (!this.cart || this.cart.length === 0) {
-          Utils.showToast('Your cart is empty', 'error');
+          this.safeShowToast('Your cart is empty', 'error');
           return;
         }
         if (!this.selectedPatientIds || this.selectedPatientIds.length === 0) {
-          Utils.showToast('Please select at least one family member', 'error');
+          this.safeShowToast('Please select at least one family member', 'error');
           return;
         }
       }
       if (slideIndex > 2) {
         if (!this.selectedPatientPhone || this.selectedPatientPhone.length !== 10) {
-          Utils.showToast(`Please enter a valid 10-digit mobile number for ${this.selectedPatientName}`, 'error');
+          this.safeShowToast(`Please enter a valid 10-digit mobile number for ${this.selectedPatientName}`, 'error');
           return;
         }
         if (!this.selectedTimeSlot) {
-          Utils.showToast('Please select a 30-minute collection time slot', 'error');
+          this.safeShowToast('Please select a 30-minute collection time slot', 'error');
           return;
         }
       }
       if (slideIndex > 3 && !this.selectedPaymentMode) {
-        Utils.showToast('Please select a payment method (UPI or Cash) to proceed', 'error');
+        this.safeShowToast('Please select a payment method (UPI or Cash) to proceed', 'error');
         return;
       }
     }
@@ -243,7 +249,7 @@ const CartPage = {
 
   tryJumpToSlide(targetSlide) {
     if (this.isAddonMode && targetSlide < 3) {
-      Utils.showToast('Collection type & Patient details are locked for this booking', 'info');
+      this.safeShowToast('Collection type & Patient details are locked for this booking', 'info');
       return;
     }
     this.goToSlide(targetSlide);
@@ -317,33 +323,33 @@ const CartPage = {
   handleFloatingActionButton() {
     if (this.currentSlide === 1) {
       if (!this.cart || this.cart.length === 0) {
-        Utils.showToast('Your cart is empty', 'error');
+        this.safeShowToast('Your cart is empty', 'error');
         return;
       }
       if (!this.selectedPatientIds || this.selectedPatientIds.length === 0) {
-        Utils.showToast('Please select at least one family member', 'error');
+        this.safeShowToast('Please select at least one family member', 'error');
         return;
       }
       this.goToSlide(2);
     } else if (this.currentSlide === 2) {
       if (!this.selectedPatientPhone || this.selectedPatientPhone.length !== 10) {
-        Utils.showToast(`Please enter a valid 10-digit mobile number for ${this.selectedPatientName}`, 'error');
+        this.safeShowToast(`Please enter a valid 10-digit mobile number for ${this.selectedPatientName}`, 'error');
         return;
       }
       if (!this.selectedTimeSlot) {
-        Utils.showToast('Please select a 30-minute collection time slot', 'error');
+        this.safeShowToast('Please select a 30-minute collection time slot', 'error');
         return;
       }
       this.goToSlide(3);
     } else if (this.currentSlide === 3) {
       if (!this.selectedPaymentMode) {
-        Utils.showToast('Please select payment method (UPI or Cash)', 'error');
+        this.safeShowToast('Please select payment method (UPI or Cash)', 'error');
         return;
       }
       this.goToSlide(4);
     } else if (this.currentSlide === 4) {
       if (!this.collectionType) {
-        Utils.showToast('Please select Home Pickup or Lab Walk-in', 'error');
+        this.safeShowToast('Please select Home Pickup or Lab Walk-in', 'error');
         return;
       }
       this.openPatientConfirmModal();
@@ -355,7 +361,7 @@ const CartPage = {
   // ==========================================================
   selectCollectionType(type, persist = true) {
     if (this.isAddonMode) {
-      Utils.showToast('Collection mode is locked to existing booking appointment', 'info');
+      this.safeShowToast('Collection mode is locked to existing booking appointment', 'info');
       return;
     }
 
@@ -407,7 +413,7 @@ const CartPage = {
       }, 0);
     }
 
-    // Combined 500 or above -> FREE (₹0)
+    // Orders ₹500 or above -> 100% FREE DOORSTEP PICKUP
     if (total >= 500) {
       return 0;
     }
@@ -571,7 +577,7 @@ const CartPage = {
 
   togglePatient(id) {
     if (this.isAddonMode) {
-      Utils.showToast('Patient is fixed to the existing booking', 'info');
+      this.safeShowToast('Patient is fixed to the existing booking', 'info');
       return;
     }
 
@@ -579,7 +585,7 @@ const CartPage = {
 
     if (index > -1) {
       if (this.selectedPatientIds.length === 1) {
-        Utils.showToast('At least one family member must be selected', 'info');
+        this.safeShowToast('At least one family member must be selected', 'info');
         return;
       }
       this.selectedPatientIds.splice(index, 1);
@@ -719,11 +725,7 @@ const CartPage = {
           const targetPatientItems = this.cart.filter((it, idx) => idx !== itemIndex && (it.patientId || 'SELF') === targetPatientId);
           const conflict = ConflictValidator.checkConflict(targetItem, targetPatientItems);
           if (conflict && conflict.hasConflict) {
-            if (typeof Utils !== 'undefined') {
-              Utils.showToast(conflict.reason, 'error');
-            } else {
-              alert(conflict.reason);
-            }
+            this.safeShowToast(conflict.reason, 'error');
             this.renderItemsList();
             return;
           }
@@ -736,7 +738,7 @@ const CartPage = {
       this.saveCartState();
       this.renderItemsList();
       const p = this.familyMembers.find(m => m.id === targetPatientId);
-      if (p && typeof Utils !== 'undefined') Utils.showToast(`Test assigned to ${p.name}`, 'info');
+      if (p) this.safeShowToast(`Test assigned to ${p.name}`, 'info');
     }
   },
 
@@ -765,7 +767,7 @@ const CartPage = {
     effectiveMembers.forEach(member => {
       const memberItems = this.cart
         .map((item, idx) => ({ ...item, originalIndex: idx }))
-        .filter(item => item.patientId === member.id);
+        .filter(item => (item.patientId || fallbackPatientId) === member.id);
 
       groupedHtml += `
         <div class="patient-tests-group-card glass-panel-3d animate-3d-card">
@@ -1098,7 +1100,7 @@ const CartPage = {
 
   selectSlotDay(day, persist = true) {
     if (this.isAddonMode) {
-      Utils.showToast('Schedule day is locked to existing booking appointment', 'info');
+      this.safeShowToast('Schedule day is locked to existing booking appointment', 'info');
       return;
     }
 
@@ -1189,49 +1191,49 @@ const CartPage = {
   // ==========================================================
   openPatientConfirmModal() {
     if (!navigator.onLine) {
-      Utils.showToast('Internet connection required to proceed with booking.', 'error');
+      this.safeShowToast('Internet connection required to proceed with booking.', 'error');
       return;
     }
 
     if (!this.cart || this.cart.length === 0) {
-      Utils.showToast('Your cart is empty', 'error');
+      this.safeShowToast('Your cart is empty', 'error');
       this.goToSlide(1);
       return;
     }
 
     const newTestsCount = this.cart.filter(i => !i.isExistingBookingItem).length;
     if (this.isAddonMode && newTestsCount === 0) {
-      Utils.showToast('Please add new tests or packages to this booking first', 'info');
+      this.safeShowToast('Please add new tests or packages to this booking first', 'info');
       window.location.href = 'tests.html';
       return;
     }
 
     if (!this.selectedPatientIds || this.selectedPatientIds.length === 0) {
-      Utils.showToast('Please select at least one patient for sample pickup', 'error');
+      this.safeShowToast('Please select at least one patient for sample pickup', 'error');
       this.goToSlide(1);
       return;
     }
 
     if (!this.selectedPatientPhone || this.selectedPatientPhone.length !== 10) {
-      Utils.showToast(`Please enter a valid 10-digit mobile number for ${this.selectedPatientName}`, 'error');
+      this.safeShowToast(`Please enter a valid 10-digit mobile number for ${this.selectedPatientName}`, 'error');
       if (!this.isAddonMode) this.goToSlide(2);
       return;
     }
 
     if (this.collectionType === 'home' && (!this.currentPickupAddress || this.currentPickupAddress.trim() === '')) {
-      Utils.showToast('Please provide a valid doorstep pickup address', 'error');
+      this.safeShowToast('Please provide a valid doorstep pickup address', 'error');
       if (!this.isAddonMode) this.goToSlide(2);
       return;
     }
 
     if (!this.selectedTimeSlot) {
-      Utils.showToast('Please select a valid 30-minute collection slot', 'error');
+      this.safeShowToast('Please select a valid 30-minute collection slot', 'error');
       if (!this.isAddonMode) this.goToSlide(2);
       return;
     }
 
     if (!this.collectionType) {
-      Utils.showToast('Please select collection mode (Home Pickup or Lab Walk-in)', 'error');
+      this.safeShowToast('Please select collection mode (Home Pickup or Lab Walk-in)', 'error');
       this.goToSlide(4);
       return;
     }
@@ -1298,7 +1300,7 @@ const CartPage = {
   },
 
   // ==========================================================
-  // DIRECT UPI INTENT / CASH CHECKOUT ORCHESTRATION
+  // DIRECT UPI INTENT / CASH CHECKOUT WITH MULTI-PATIENT SPLIT
   // ==========================================================
   async handleProceedToCheckout() {
     if (this.isProcessingCheckout) return;
@@ -1328,62 +1330,129 @@ const CartPage = {
     const finalLocation = this.collectionType === 'lab' ? 'Lab Center' : this.currentPickupLocation;
 
     const selectedMembers = this.familyMembers.filter(m => this.selectedPatientIds.includes(m.id));
+    const isMulti = selectedMembers.length > 1;
+    const baseBookingId = this.isAddonMode 
+      ? this.addonBookingId 
+      : `SCDBOOK${Math.floor(100000 + Math.random() * 900000)}`;
 
-    const bookingPayload = {
-      patientId: this.selectedPatientId,
-      patientName: this.selectedPatientName,
-      patientPhone: this.selectedPatientPhone,
-      patientEmail: this.selectedPatientEmail || '',
-      relation: this.selectedPatientRelation || 'Self',
-      isAddon: this.isAddonMode,
-      targetBookingId: this.addonBookingId || null,
-      selectedPatients: selectedMembers.map(m => ({
-        id: m.id,
-        name: m.name,
-        relation: m.relation || 'Member',
-        age: m.age || '',
-        gender: m.gender || '',
-        mobile: m.mobile || ''
-      })),
-      items: newItems.map(i => {
-        const pObj = this.familyMembers.find(m => m.id === i.patientId) || selectedMembers[0] || {};
-        return {
+    const defaultPatientId = (selectedMembers[0] && selectedMembers[0].id) || 'SELF';
+
+    // MULTI-PATIENT PARTITION ENGINE:
+    // Split newItems into distinct patient groups with dedicated sub-booking IDs
+    const patientBookingsData = [];
+
+    selectedMembers.forEach((member, idx) => {
+      const memberItems = newItems.filter(item => (item.patientId || defaultPatientId) === member.id);
+      if (memberItems.length === 0) return;
+
+      const mSubtotal = memberItems.reduce((sum, it) => sum + Number(it.price || it.OfferPrice || 0), 0);
+      const mDiscount = subtotalNew > 0 ? Math.round((mSubtotal / subtotalNew) * couponDiscount) : 0;
+      // Single home collection visit fee assigned to primary patient only
+      const mDoorstep = (idx === 0) ? doorstepCharge : 0;
+      const mFinal = Math.max(0, mSubtotal - mDiscount + mDoorstep);
+      // Dedicated Booking ID per patient (e.g., SCDBOOK100001-1 for Self, SCDBOOK100001-2 for Jazeerah)
+      const mBookingId = isMulti ? `${baseBookingId}-${idx + 1}` : baseBookingId;
+
+      patientBookingsData.push({
+        bookingId: mBookingId,
+        baseBookingId: baseBookingId,
+        patientId: member.id,
+        patientName: member.name,
+        patientPhone: member.mobile || this.selectedPatientPhone,
+        patientEmail: member.email || this.selectedPatientEmail || '',
+        relation: member.relation || (idx === 0 ? 'Self' : 'Member'),
+        items: memberItems.map(i => ({
           id: i.id || i.TestID || i.PackageID || '',
           name: i.name || i.TestName || i.PackageName || '',
           code: i.code || i.TestCode || i.PackageCode || '',
           price: Number(i.price || i.OfferPrice || 0),
-          patientId: pObj.id || 'SELF',
-          patientName: pObj.name || this.selectedPatientName
-        };
-      }),
-      collectionType: this.collectionType,
-      address: finalAddress,
-      location: { link: finalLocation },
-      collectionDate: collectionDateStr,
-      timeSlot: this.selectedTimeSlot,
-      subtotal: subtotalNew,
-      couponDiscount: couponDiscount,
-      onlineDiscount: 0,
-      doorstepCharge: doorstepCharge,
-      finalAmount: finalPayable,
-      couponCode: this.appliedCoupon || ''
-    };
+          patientId: member.id,
+          patientName: member.name,
+          relation: member.relation || 'Member'
+        })),
+        collectionType: this.collectionType,
+        address: finalAddress,
+        location: { link: finalLocation },
+        collectionDate: collectionDateStr,
+        timeSlot: this.selectedTimeSlot,
+        subtotal: mSubtotal,
+        couponDiscount: mDiscount,
+        onlineDiscount: 0,
+        doorstepCharge: mDoorstep,
+        finalAmount: mFinal,
+        couponCode: this.appliedCoupon || ''
+      });
+    });
+
+    // Fallback: If no partitioned items matched, bundle all under primary
+    if (patientBookingsData.length === 0) {
+      patientBookingsData.push({
+        bookingId: baseBookingId,
+        baseBookingId: baseBookingId,
+        patientId: this.selectedPatientId,
+        patientName: this.selectedPatientName,
+        patientPhone: this.selectedPatientPhone,
+        patientEmail: this.selectedPatientEmail || '',
+        relation: this.selectedPatientRelation || 'Self',
+        items: newItems.map(i => ({
+          id: i.id || i.TestID || i.PackageID || '',
+          name: i.name || i.TestName || i.PackageName || '',
+          code: i.code || i.TestCode || i.PackageCode || '',
+          price: Number(i.price || i.OfferPrice || 0),
+          patientId: this.selectedPatientId,
+          patientName: this.selectedPatientName,
+          relation: this.selectedPatientRelation || 'Self'
+        })),
+        collectionType: this.collectionType,
+        address: finalAddress,
+        location: { link: finalLocation },
+        collectionDate: collectionDateStr,
+        timeSlot: this.selectedTimeSlot,
+        subtotal: subtotalNew,
+        couponDiscount: couponDiscount,
+        onlineDiscount: 0,
+        doorstepCharge: doorstepCharge,
+        finalAmount: finalPayable,
+        couponCode: this.appliedCoupon || ''
+      });
+    }
 
     // PATHWAY A: CASH ON VISIT
     if (this.selectedPaymentMode === 'cash') {
       try {
-        let bookingRes = null;
-        if (typeof Api !== 'undefined' && Api.createBooking) {
-          bookingRes = await Api.createBooking(bookingPayload);
+        const createdIds = [];
+
+        // Save each patient's booking separately in Google Sheets and Local Database
+        for (const pData of patientBookingsData) {
+          const payload = {
+            ...pData,
+            paymentStatus: 'PENDING_COLLECTION',
+            bookingStatus: 'CONFIRMED'
+          };
+
+          if (typeof Api !== 'undefined' && Api.createBooking) {
+            await Api.createBooking(payload).catch(err => console.warn('Cloud write deferred:', err));
+          }
+
+          this.persistConfirmedBookingLocally({
+            ...payload,
+            currentStage: 1,
+            items: pData.items
+          });
+
+          createdIds.push(pData.bookingId);
         }
 
-        const bookingId = this.isAddonMode ? this.addonBookingId : ((bookingRes && bookingRes.bookingId) || `SCDBOOK${Math.floor(100000 + Math.random() * 900000)}`);
-
-        this.finalizeConfirmedBooking(bookingId, finalPayable, 'Cash on Sample Collection', newItems);
-        Utils.showToast(this.isAddonMode ? `Tests added to Booking ${bookingId}!` : `Booking ${bookingId} confirmed!`, 'success');
+        this.finalizeConfirmedMultiBooking(patientBookingsData, 'Cash on Sample Collection');
+        this.safeShowToast(
+          this.isAddonMode 
+            ? `Tests added to Booking ${baseBookingId}!` 
+            : `Bookings (${createdIds.join(', ')}) confirmed!`, 
+          'success'
+        );
       } catch (err) {
         console.error('Cash booking creation failed:', err);
-        Utils.showToast(err.message || 'Failed to confirm booking. Please try again.', 'error');
+        this.safeShowToast(err.message || 'Failed to confirm booking. Please try again.', 'error');
       } finally {
         this.resetCheckoutButtonState();
       }
@@ -1396,7 +1465,29 @@ const CartPage = {
         throw new Error('API client method createPendingUPIBooking is not available.');
       }
 
-      const pendingRes = await Api.createPendingUPIBooking(bookingPayload);
+      // Single checkout UPI intent payload for the combined total
+      const pendingPayload = {
+        bookingId: baseBookingId,
+        patientId: this.selectedPatientId,
+        patientName: selectedMembers.map(m => m.name).join(' & '),
+        patientPhone: this.selectedPatientPhone,
+        patientEmail: this.selectedPatientEmail || '',
+        relation: this.selectedPatientRelation || 'Self',
+        items: newItems,
+        collectionType: this.collectionType,
+        address: finalAddress,
+        location: { link: finalLocation },
+        collectionDate: collectionDateStr,
+        timeSlot: this.selectedTimeSlot,
+        subtotal: subtotalNew,
+        couponDiscount: couponDiscount,
+        onlineDiscount: 0,
+        doorstepCharge: doorstepCharge,
+        finalAmount: finalPayable,
+        couponCode: this.appliedCoupon || ''
+      };
+
+      const pendingRes = await Api.createPendingUPIBooking(pendingPayload);
 
       if (!pendingRes || !pendingRes.bookingId || !pendingRes.paymentReference) {
         throw new Error('Unable to initialize booking session with server.');
@@ -1406,13 +1497,9 @@ const CartPage = {
         bookingId: pendingRes.bookingId,
         paymentReference: pendingRes.paymentReference,
         finalAmount: pendingRes.finalAmount || finalPayable,
-        patientName: this.selectedPatientName,
-        patientPhone: this.selectedPatientPhone,
-        patientEmail: this.selectedPatientEmail,
-        patientRelation: this.selectedPatientRelation,
+        patientBookingsData: patientBookingsData,
         collectionDate: collectionDateStr,
         timeSlot: this.selectedTimeSlot,
-        dateKey: `${collectionDateStr}_${this.selectedTimeSlot}`,
         collectionType: this.collectionType,
         address: finalAddress,
         location: finalLocation,
@@ -1462,7 +1549,7 @@ const CartPage = {
 
     } catch (err) {
       console.error('Direct UPI Intent failure:', err);
-      Utils.showToast(err.message || 'Error opening UPI payment. Please try again.', 'error');
+      this.safeShowToast(err.message || 'Error opening UPI payment. Please try again.', 'error');
       this.resetCheckoutButtonState();
     }
   },
@@ -1517,7 +1604,7 @@ const CartPage = {
     this.openModal('upi-confirm-modal');
   },
 
-  confirmUserPaymentSuccess() {
+  async confirmUserPaymentSuccess() {
     if (!this.currentPendingBooking) return;
 
     const yesBtn = document.querySelector('#upi-confirm-modal .modal-action-btn');
@@ -1543,12 +1630,33 @@ const CartPage = {
       }
     } catch (err) {}
 
-    this.finalizeConfirmedBooking(finalId, booking.finalAmount, 'Online UPI', booking.newItems);
+    // Register each patient's individual booking in Google Sheets and Local Database
+    const pList = booking.patientBookingsData || [];
+    for (const pData of pList) {
+      const payload = {
+        ...pData,
+        paymentStatus: 'PAYMENT_SUCCESS',
+        bookingStatus: 'CONFIRMED',
+        paymentReference: booking.paymentReference
+      };
+
+      if (typeof Api !== 'undefined' && Api.createBooking) {
+        Api.createBooking(payload).catch(err => console.warn('Child booking cloud write deferred:', err));
+      }
+
+      this.persistConfirmedBookingLocally({
+        ...payload,
+        currentStage: 1,
+        items: pData.items
+      });
+    }
+
+    this.finalizeConfirmedMultiBooking(pList, 'Online UPI');
     this.closeModal('upi-confirm-modal');
     this.resetCheckoutButtonState();
   },
 
-  finalizeConfirmedBooking(bookingId, payableAmount, payModeTitle, newItems) {
+  finalizeConfirmedMultiBooking(patientBookingsData, payModeTitle) {
     const isLab = this.collectionType === 'lab';
     const typeLabel = isLab 
       ? 'Direct Lab Walk-in (FREE ₹0)' 
@@ -1558,114 +1666,35 @@ const CartPage = {
       ? `🏢 *Visit Center:* Selfcare Diagnostics Lab, Chennai` 
       : `🏠 *Address:* ${this.currentPickupAddress}\n📍 *Location Link:* ${this.currentPickupLocation}`;
 
-    const selectedMembers = this.familyMembers.filter(m => this.selectedPatientIds.includes(m.id));
+    let totalAmount = 0;
+    let patientDetailsBlocks = '';
 
-    let patientItemsText = '';
-    if (selectedMembers.length > 1) {
-      selectedMembers.forEach((member, i) => {
-        const mItems = this.cart.filter(item => item.patientId === member.id);
-        patientItemsText += `\n👤 *Patient ${i + 1}: ${member.name} (${member.relation || 'Member'})*\n`;
-        if (mItems.length === 0) {
-          patientItemsText += `  _No tests assigned_\n`;
-        } else {
-          mItems.forEach((it, idx) => {
-            patientItemsText += `  ${idx + 1}. ${it.name} (₹${it.price || it.OfferPrice})\n`;
-          });
-        }
-      });
-    } else {
-      patientItemsText = this.cart.map((item, i) => `${i + 1}. ${item.name || item.TestName || item.PackageName} (₹${item.price || item.OfferPrice})`).join('\n');
-    }
-
-    if (this.isAddonMode && this.addonBooking) {
-      let originalItems = this.addonBooking.items;
-      if (typeof originalItems === 'string') {
-        try { originalItems = JSON.parse(originalItems); } catch (e) { originalItems = []; }
-      }
-      if (!Array.isArray(originalItems)) originalItems = [];
-
-      const mergedItems = [...originalItems, ...newItems.map(i => ({ name: i.name, price: Number(i.price || 0) }))];
-
-      const mergedBooking = {
-        ...this.addonBooking,
-        items: mergedItems,
-        finalAmount: (Number(this.addonBooking.finalAmount) || 0) + Number(payableAmount || 0),
-        updatedAt: new Date().toISOString()
-      };
-
-      this.persistConfirmedBookingLocally(mergedBooking);
-
-      const waMessage = 
-`*ADD-ON TESTS ADDED TO EXISTING BOOKING* 🧪
-━━━━━━━━━━━━━━━━━━━━
-✅ *Payment:* SUCCESSFUL (${payModeTitle})
-📋 *Booking ID:* ${bookingId}
-👤 *Patient:* ${this.selectedPatientName} (${this.selectedPatientRelation || 'Self'})
-📞 *Contact:* +91 ${this.selectedPatientPhone}
-🏥 *Collection Mode:* ${typeLabel}
-${addressDetails}
-⏱ *Scheduled Slot:* ${this.addonBooking.collectionDate} (${this.addonBooking.timeSlot})
-━━━━━━━━━━━━━━━━━━━━
-➕ *Newly Added Tests:*
-${newItems.map((item, i) => `${i + 1}. ${item.name} (₹${item.price})`).join('\n')}
-━━━━━━━━━━━━━━━━━━━━
-💰 *Additional Amount Paid:* ${Utils.formatCurrency(payableAmount)}
-━━━━━━━━━━━━━━━━━━━━
-_Please include these additional test tubes in the phlebotomist sample collection kit._`;
-
-      this.clearPersistedWizardState();
-      this.exitAddonMode();
-      this.cart = [];
-      this.saveCartState();
-      this.renderCartUI();
-      this.updateCartBadgeUI();
-
-      const waUrl = `https://wa.me/917010174890?text=${encodeURIComponent(waMessage)}`;
-      window.location.href = waUrl;
-      return;
-    }
-
-    this.persistConfirmedBookingLocally({
-      bookingId: bookingId,
-      patientId: this.selectedPatientId,
-      patientName: this.selectedPatientName,
-      patientPhone: this.selectedPatientPhone,
-      patientEmail: this.selectedPatientEmail,
-      relation: this.selectedPatientRelation || 'Self',
-      selectedPatients: selectedMembers,
-      collectionType: this.collectionType,
-      collectionDate: this.selectedSlotDay === 'Today' ? 'Today' : this.selectedSlotDay,
-      timeSlot: this.selectedTimeSlot,
-      paymentStatus: payModeTitle.includes('Online') ? 'PAYMENT_SUCCESS' : 'PENDING_COLLECTION',
-      bookingStatus: 'CONFIRMED',
-      finalAmount: payableAmount,
-      address: this.currentPickupAddress,
-      currentStage: 1,
-      items: this.cart.map(i => ({ 
-        name: i.name || i.TestName || i.PackageName, 
-        price: Number(i.price || i.OfferPrice || 0),
-        patientId: i.patientId || 'SELF'
-      }))
+    patientBookingsData.forEach((pData, idx) => {
+      totalAmount += Number(pData.finalAmount || 0);
+      patientDetailsBlocks += `
+👤 *Patient ${idx + 1}: ${pData.patientName} (${pData.relation || 'Member'})*
+📋 *Booking ID:* ${pData.bookingId}
+📞 *Mobile:* +91 ${pData.patientPhone}
+🧪 *Booked Tests:*
+${pData.items.map((it, i) => `  ${i + 1}. ${it.name} (₹${it.price})`).join('\n')}
+💰 *Payable:* ${Utils.formatCurrency(pData.finalAmount)}
+`;
     });
 
-    const isMulti = selectedMembers.length > 1;
+    const isMulti = patientBookingsData.length > 1;
 
     const waMessage = 
 `*NEW ${isMulti ? 'FAMILY ' : ''}TEST BOOKING - SELFCARE DIAGNOSTICS* 🧪
 ━━━━━━━━━━━━━━━━━━━━
-📋 *Booking ID:* ${bookingId}
-👥 *Patients:* ${isMulti ? `${selectedMembers.length} Members` : `${this.selectedPatientName} (${this.selectedPatientRelation || 'Self'})`}
-📞 *Primary Contact:* +91 ${this.selectedPatientPhone}
+💳 *Payment Mode:* ${payModeTitle}
 🏥 *Collection Mode:* ${typeLabel}
 ${addressDetails}
 ⏱ *Appointment Slot:* ${this.selectedSlotDay} (${this.selectedTimeSlot})
 ━━━━━━━━━━━━━━━━━━━━
-🧪 *Booked Items per Patient:*
-${patientItemsText}
+${patientDetailsBlocks.trim()}
 ━━━━━━━━━━━━━━━━━━━━
 🏷️ *Coupon:* ${this.appliedCoupon || 'None'}
-💳 *Payment Mode:* ${payModeTitle}
-💰 *Total Payable:* ${Utils.formatCurrency(payableAmount)}
+💰 *Grand Total:* ${Utils.formatCurrency(totalAmount)}
 ━━━━━━━━━━━━━━━━━━━━
 _${isLab ? 'Direct walk-in counter booking.' : 'Please assign phlebotomist with required sample vials for doorstep pickup.'}_`;
 
@@ -1703,7 +1732,7 @@ _${isLab ? 'Direct walk-in counter booking.' : 'Please assign phlebotomist with 
     sessionStorage.removeItem('selfcare_active_upi_txn');
     this.resetCheckoutButtonState();
 
-    Utils.showToast('Payment was not completed. You can retry UPI or choose Cash.', 'info');
+    this.safeShowToast('Payment was not completed. You can retry UPI or choose Cash.', 'info');
   },
 
   resetCheckoutButtonState() {
@@ -1727,7 +1756,7 @@ _${isLab ? 'Direct walk-in counter booking.' : 'Please assign phlebotomist with 
     if (index >= 0 && index < this.cart.length) {
       const item = this.cart[index];
       if (item.isExistingBookingItem) {
-        Utils.showToast('Already booked tests cannot be removed from this visit', 'info');
+        this.safeShowToast('Already booked tests cannot be removed from this visit', 'info');
         return;
       }
 
@@ -1736,7 +1765,7 @@ _${isLab ? 'Direct walk-in counter booking.' : 'Please assign phlebotomist with 
       this.renderCartUI();
       this.updateCartBadgeUI();
       if (removed && removed[0]) {
-        Utils.showToast(`${removed[0].name || 'Item'} removed`, 'info');
+        this.safeShowToast(`${removed[0].name || 'Item'} removed`, 'info');
       }
     }
   },
@@ -1865,7 +1894,7 @@ _${isLab ? 'Direct walk-in counter booking.' : 'Please assign phlebotomist with 
     localStorage.setItem('selfcare_applied_coupon', code);
     this.calculateBillSummary();
     this.closeModal('available-coupons-modal');
-    Utils.showToast(`Coupon "${code}" applied successfully!`, 'success');
+    this.safeShowToast(`Coupon "${code}" applied successfully!`, 'success');
   },
 
   applyCouponManually() {
@@ -1873,7 +1902,7 @@ _${isLab ? 'Direct walk-in counter booking.' : 'Please assign phlebotomist with 
     const val = input ? input.value.trim() : '';
 
     if (!val) {
-      Utils.showToast('Please enter coupon code', 'error');
+      this.safeShowToast('Please enter coupon code', 'error');
       return;
     }
 
@@ -1886,7 +1915,7 @@ _${isLab ? 'Direct walk-in counter booking.' : 'Please assign phlebotomist with 
     this.couponDiscountAmount = 0;
     localStorage.removeItem('selfcare_applied_coupon');
     this.calculateBillSummary();
-    Utils.showToast('Coupon removed', 'info');
+    this.safeShowToast('Coupon removed', 'info');
   },
 
   openEditAddressModal() {
@@ -1911,12 +1940,12 @@ _${isLab ? 'Direct walk-in counter booking.' : 'Please assign phlebotomist with 
     const loc = locationInput ? locationInput.value.trim() : '';
 
     if (!phone || phone.length !== 10 || !/^\d{10}$/.test(phone)) {
-      Utils.showToast('Please enter a valid 10-digit mobile number', 'error');
+      this.safeShowToast('Please enter a valid 10-digit mobile number', 'error');
       return;
     }
 
     if (!addr) {
-      Utils.showToast('Please enter pickup address', 'error');
+      this.safeShowToast('Please enter pickup address', 'error');
       return;
     }
 
@@ -1942,15 +1971,15 @@ _${isLab ? 'Direct walk-in counter booking.' : 'Please assign phlebotomist with 
     }
 
     this.closeModal('edit-address-modal');
-    Utils.showToast('Mobile, Address & Location updated ✓', 'success');
+    this.safeShowToast('Mobile, Address & Location updated ✓', 'success');
   },
 
   detectGpsLocation(targetId) {
     if (!navigator.geolocation) {
-      Utils.showToast('GPS not supported on this browser', 'error');
+      this.safeShowToast('GPS not supported on this browser', 'error');
       return;
     }
-    Utils.showToast('Detecting current GPS location...', 'info');
+    this.safeShowToast('Detecting current GPS location...', 'info');
 
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -1959,10 +1988,10 @@ _${isLab ? 'Direct walk-in counter booking.' : 'Please assign phlebotomist with 
         const url = `https://maps.google.com/?q=${lat},${lng}`;
         const input = document.getElementById(targetId);
         if (input) input.value = url;
-        Utils.showToast('GPS Location fetched successfully!', 'success');
+        this.safeShowToast('GPS Location fetched successfully!', 'success');
       },
       () => {
-        Utils.showToast('Could not fetch GPS. Please turn on location.', 'error');
+        this.safeShowToast('Could not fetch GPS. Please turn on location.', 'error');
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
