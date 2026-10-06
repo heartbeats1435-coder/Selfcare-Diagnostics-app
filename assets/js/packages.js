@@ -1,13 +1,15 @@
-/* file: assets/js/packages.js */
 /**
- * Selfcare Diagnostics - Health Packages Page JS v5.1.0
+ * Selfcare Diagnostics - Health Packages Page JS v6.1.0
  * Features:
- * 1. Strict Backend-Only Data Loading.
- * 2. 3-Tier Neon Glow Effects for Top 3 Packages.
- * 3. Dynamic Category Selection Bar.
- * 4. Advanced Multi-Tier Conflict Validation Engine (Blocks Duplicate Packages & Tests).
- * 5. Safe ID-based Cart Toggle & Voice Search.
- * 6. Search State Persistence during Background Offline Sync.
+ * 1. Multi-Patient Isolated Conflict Validation.
+ * 2. Target Patient Context Detection via URL & sessionStorage (targetPatientId).
+ * 3. Patient-Isolated Cart Existence Checker (isItemInCart).
+ * 4. Strict Backend-Only Data Loading.
+ * 5. 3-Tier Neon Glow Effects for Top 3 Packages.
+ * 6. Dynamic Category Selection Bar.
+ * 7. Safe ID-based Cart Toggle & Voice Search.
+ * 8. Search State Persistence during Background Offline Sync.
+ * 9. Native Web Share API (navigator.share) with clean clipboard fallback for Packages.
  */
 
 const PackagesPage = {
@@ -63,6 +65,29 @@ const PackagesPage = {
     } catch (error) {
       console.error('PackagesPage init error:', error);
     }
+  },
+
+  /**
+   * Identifies the current active patient context
+   */
+  getTargetPatientId() {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const paramId = urlParams.get('patientId');
+      if (paramId && paramId.trim()) {
+        const cleanId = decodeURIComponent(paramId.trim());
+        sessionStorage.setItem('selfcare_target_patient_id', cleanId);
+        return cleanId;
+      }
+
+      const storedId = sessionStorage.getItem('selfcare_target_patient_id');
+      if (storedId && storedId.trim()) {
+        return storedId.trim();
+      }
+    } catch (e) {
+      console.warn('Error resolving targetPatientId in packages:', e);
+    }
+    return 'SELF';
   },
 
   getScdPackPriority(pkg, index = 0) {
@@ -223,16 +248,25 @@ const PackagesPage = {
     });
   },
 
+  /**
+   * Patient-Isolated Existence Checker
+   */
   isItemInCart(packageId, packageCode, packageName) {
     const cart = this.getCart();
-    const sId = String(packageId || '').trim();
-    const sCode = String(packageCode || '').trim();
-    const sName = String(packageName || '').trim();
+    const targetPatientId = this.getTargetPatientId();
+    const sId = String(packageId || '').trim().toLowerCase();
+    const sCode = String(packageCode || '').trim().toLowerCase();
+    const sName = String(packageName || '').trim().toLowerCase();
 
     return cart.some(item => {
-      const iId = String(item.PackageID || item.id || item.TestID || item.PackageCode || item.code || '').trim();
-      const iCode = String(item.PackageCode || item.code || item.TestCode || '').trim();
-      const iName = String(item.PackageName || item.name || item.TestName || '').trim();
+      const itemPatientId = item.patientId || 'SELF';
+      if (itemPatientId !== targetPatientId) {
+        return false;
+      }
+
+      const iId = String(item.PackageID || item.id || item.TestID || item.PackageCode || item.code || '').trim().toLowerCase();
+      const iCode = String(item.PackageCode || item.code || item.TestCode || '').trim().toLowerCase();
+      const iName = String(item.PackageName || item.name || item.TestName || '').trim().toLowerCase();
       return (sId && iId === sId) || (sCode && iCode === sCode) || (sName && iName === sName);
     });
   },
@@ -273,6 +307,9 @@ const PackagesPage = {
     }, 550);
   },
 
+  /**
+   * Multi-tenant Isolated Toggle Cart Action
+   */
   toggleCart(pkgOrId, event) {
     if (event) {
       event.stopPropagation();
@@ -286,6 +323,7 @@ const PackagesPage = {
 
     if (!pkg) return;
 
+    const targetPatientId = this.getTargetPatientId();
     const packageCode = pkg.PackageCode || 'PKG';
     const packageId = pkg.PackageID || packageCode;
     const packageName = pkg.PackageName || '';
@@ -298,19 +336,26 @@ const PackagesPage = {
       id: packageId,
       code: packageCode,
       name: packageName,
-      type: 'package'
+      type: 'package',
+      patientId: targetPatientId,
+      addedAt: new Date().toISOString()
     };
 
     if (!isAdded) {
       if (typeof ConflictValidator !== 'undefined') {
-        const conflict = ConflictValidator.checkConflict(pkgWithMeta, cart);
-        if (conflict && conflict.hasConflict) {
-          if (typeof Utils !== 'undefined') {
-            Utils.showToast(conflict.reason, 'error');
-          } else {
-            alert(conflict.reason);
+        try {
+          const patientOnlyCart = cart.filter(i => (i.patientId || 'SELF') === targetPatientId);
+          const conflict = ConflictValidator.checkConflict(pkgWithMeta, patientOnlyCart);
+          if (conflict && conflict.hasConflict) {
+            if (typeof Utils !== 'undefined') {
+              Utils.showToast(conflict.reason, 'error');
+            } else {
+              alert(conflict.reason);
+            }
+            return;
           }
-          return;
+        } catch (cvErr) {
+          console.warn('Conflict check non-fatal exception:', cvErr);
         }
       }
     }
@@ -322,13 +367,25 @@ const PackagesPage = {
 
     if (isAdded) {
       cart = cart.filter(i => {
+        const itemPatientId = i.patientId || 'SELF';
+        if (itemPatientId !== targetPatientId) {
+          return true;
+        }
+
         const iId = String(i.PackageID || i.id || i.TestID || i.PackageCode || i.code || '');
         const iCode = String(i.PackageCode || i.code || i.TestCode || '');
         const iName = String(i.PackageName || i.name || i.TestName || '');
         return iId !== packageId && iCode !== packageCode && iName !== packageName;
       });
+
+      if (typeof Utils !== 'undefined') {
+        Utils.showToast(`Removed "${packageName}" from cart`, 'info');
+      }
     } else {
       cart.push(pkgWithMeta);
+      if (typeof Utils !== 'undefined') {
+        Utils.showToast(`Added "${packageName}" to cart`, 'success');
+      }
     }
 
     const cartStr = JSON.stringify(cart);
@@ -411,6 +468,131 @@ const PackagesPage = {
     }
   },
 
+  getBaseAppUrl() {
+    if (typeof window !== 'undefined' && window.location) {
+      const host = window.location.hostname;
+      const isLocal = host === 'localhost' || host === '127.0.0.1' || host === '' || window.location.protocol === 'file:';
+      if (isLocal) {
+        return 'https://heartbeats1435-coder.github.io/Selfcare-Diagnostics-app';
+      }
+      const pathname = window.location.pathname;
+      const basePath = pathname.substring(0, pathname.lastIndexOf('/'));
+      return `${window.location.origin}${basePath}`;
+    }
+    return 'https://heartbeats1435-coder.github.io/Selfcare-Diagnostics-app';
+  },
+
+  async copyToClipboard(text) {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      if (typeof Utils !== 'undefined' && Utils.showToast) {
+        Utils.showToast('Share link copied to clipboard!', 'success');
+      }
+    } catch (err) {
+      console.error('Clipboard copy failed:', err);
+      if (typeof Utils !== 'undefined' && Utils.showToast) {
+        Utils.showToast('Unable to copy share link', 'error');
+      }
+    }
+  },
+
+  async executeShare(shareTitle, shareBody, shareUrl) {
+    const fullShareText = `${shareBody}\n\n${shareUrl}`;
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        await navigator.share({
+          title: shareTitle,
+          text: fullShareText
+        });
+        return;
+      } catch (err) {
+        if (err.name === 'AbortError') return;
+        try {
+          await navigator.share({
+            title: shareTitle,
+            text: shareBody,
+            url: shareUrl
+          });
+          return;
+        } catch (err2) {
+          if (err2.name === 'AbortError') return;
+          console.warn('Native share fallback:', err2);
+        }
+      }
+    }
+    await this.copyToClipboard(fullShareText);
+  },
+
+  sharePackage(pkgOrId, event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (typeof event.stopImmediatePropagation === 'function') {
+        event.stopImmediatePropagation();
+      }
+    }
+
+    let pkg = pkgOrId;
+    if (typeof pkgOrId === 'string') {
+      const cleanId = pkgOrId.trim();
+      pkg = this.allPackages.find(p => String(p.PackageID) === cleanId || String(p.PackageCode) === cleanId);
+      if (!pkg) {
+        try {
+          const cached = JSON.parse(localStorage.getItem('cache_packages') || '[]');
+          pkg = cached.find(p => String(p.PackageID) === cleanId || String(p.PackageCode) === cleanId);
+        } catch (e) {}
+      }
+    }
+
+    if (!pkg && typeof pkgOrId === 'object' && pkgOrId !== null) {
+      pkg = pkgOrId;
+    }
+
+    if (!pkg) {
+      console.warn('Package not found for sharing:', pkgOrId);
+      return;
+    }
+
+    const rawId = pkg.PackageID || pkg.PackageCode || pkg.id || 'PKG';
+    const pkgId = String(rawId).trim();
+    const pkgName = pkg.PackageName || pkg.name || 'Health Package';
+    const price = Number(pkg.OfferPrice || pkg.price || pkg.MRP || 0);
+    const priceFormatted = (typeof Utils !== 'undefined' && Utils.formatCurrency)
+      ? Utils.formatCurrency(price)
+      : (`₹${price}`);
+
+    let testCountText = '';
+    const numCount = Number(pkg.TestsCount || pkg.ParametersCount);
+    if (!isNaN(numCount) && numCount > 0) {
+      testCountText = `${numCount} Tests`;
+    } else {
+      const items = this.extractParametersList(pkg.Parameters || pkg.Description);
+      if (items && items.length > 0) {
+        testCountText = `${items.length} Tests`;
+      } else {
+        testCountText = this.getPackageParameterCount(pkg);
+      }
+    }
+
+    const baseUrl = this.getBaseAppUrl();
+    const shareUrl = `${baseUrl}/index.html?package=${encodeURIComponent(pkgId)}`;
+    const shareTitle = `💚 SELFCARE DIAGNOSTICS - ${pkgName}`;
+    const shareBody = `💚 SELFCARE DIAGNOSTICS\n\nPackage: ${pkgName}\n${testCountText}\nOffer Price: ${priceFormatted}\n\n📍 Home Sample Collection Available\n⚡ Fast Reports\n🏠 24/7 Home Collection\n\nView Package:`;
+
+    this.executeShare(shareTitle, shareBody, shareUrl);
+  },
+
   renderPackages(packages) {
     const container = document.getElementById('packages-catalogue-container');
     if (!container) return;
@@ -447,14 +629,25 @@ const PackagesPage = {
         : `<button type="button" class="book-btn add-cart-btn" onclick="PackagesPage.toggleCart('${Utils.escapeHtml(packageId)}', event)">🛒 Add To Cart</button>`;
 
       return `
-        <div class="package-card glass-card animate-fade ${neonCardClass}">
+        <div class="package-card glass-card animate-fade ${neonCardClass}" style="position: relative;">
           ${neonBadgeHtml}
           <div class="package-card-top">
             <div class="package-card-header-row">
-              <span class="package-code-tag">${Utils.escapeHtml(packageCode)}</span>
-              <span class="card-fasting-tag ${fastingInfo.isFasting ? 'fasting' : 'non-fasting'}">
-                ${fastingInfo.cardText}
-              </span>
+              <div class="package-card-badge-group" style="display: flex; align-items: center; gap: 6px;">
+                <span class="package-code-tag">${Utils.escapeHtml(packageCode)}</span>
+                <span class="card-fasting-tag ${fastingInfo.isFasting ? 'fasting' : 'non-fasting'}">
+                  ${fastingInfo.cardText}
+                </span>
+              </div>
+              <button type="button" class="card-share-btn" aria-label="Share Package" title="Share Package" onclick="PackagesPage.sharePackage('${Utils.escapeHtml(packageId)}', event)">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <circle cx="18" cy="5" r="3"></circle>
+                  <circle cx="6" cy="12" r="3"></circle>
+                  <circle cx="18" cy="19" r="3"></circle>
+                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                  <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                </svg>
+              </button>
             </div>
             <h4>${Utils.escapeHtml(pkg.PackageName)}</h4>
             <div class="card-param-badge">
@@ -658,14 +851,15 @@ const PackagesPage = {
     }
     if (!pkg) return;
 
+    const actualId = pkg.PackageID || pkg.PackageCode;
     const formattedParams = this.formatParameters(pkg);
     const paramCount = this.getPackageParameterCount(pkg);
     const fastingInfo = this.getFastingDetails(pkg);
-    const alreadyAdded = this.isItemInCart(pkg.PackageID || pkg.PackageCode, pkg.PackageCode, pkg.PackageName);
+    const alreadyAdded = this.isItemInCart(actualId, pkg.PackageCode, pkg.PackageName);
 
     const actionBtn = alreadyAdded
-      ? `<button class="modal-action-btn remove-btn" onclick="PackagesPage.toggleCart('${Utils.escapeHtml(packageId)}', event); PackagesPage.showPackageDetails('${Utils.escapeHtml(packageId)}');">🗑️ Remove from Cart</button>`
-      : `<button class="modal-action-btn add-btn" onclick="PackagesPage.toggleCart('${Utils.escapeHtml(packageId)}', event); PackagesPage.showPackageDetails('${Utils.escapeHtml(packageId)}');">🛒 Add to Cart</button>`;
+      ? `<button class="modal-action-btn remove-btn" onclick="PackagesPage.toggleCart('${Utils.escapeHtml(actualId)}', event); PackagesPage.showPackageDetails('${Utils.escapeHtml(actualId)}');">🗑️ Remove from Cart</button>`
+      : `<button class="modal-action-btn add-btn" onclick="PackagesPage.toggleCart('${Utils.escapeHtml(actualId)}', event); PackagesPage.showPackageDetails('${Utils.escapeHtml(actualId)}');">🛒 Add to Cart</button>`;
 
     let modal = document.getElementById('package-detail-modal');
     if (!modal) {
@@ -682,7 +876,18 @@ const PackagesPage = {
             <span class="package-avatar-icon">📦</span>
             <h3>${Utils.escapeHtml(pkg.PackageName)}</h3>
           </div>
-          <button class="sia-close-btn" onclick="document.getElementById('package-detail-modal').style.display='none'">✕</button>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <button type="button" class="card-share-btn modal-share-btn" aria-label="Share Package" title="Share Package" onclick="PackagesPage.sharePackage('${Utils.escapeHtml(actualId)}', event)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="18" cy="5" r="3"></circle>
+                <circle cx="6" cy="12" r="3"></circle>
+                <circle cx="18" cy="19" r="3"></circle>
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+              </svg>
+            </button>
+            <button class="sia-close-btn" onclick="document.getElementById('package-detail-modal').style.display='none'">✕</button>
+          </div>
         </div>
 
         <div class="sia-modal-body">

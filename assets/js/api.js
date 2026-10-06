@@ -1,21 +1,58 @@
 /* file: assets/js/api.js */
 /**
- * Selfcare Diagnostics - API Gateway v4.2.0
- * Handles all network requests to Google Apps Script backend with request deduplication,
- * caching timeout handling, and robust error management.
+ * Selfcare Diagnostics - API Gateway v5.0.0 (Zero-Freeze Dynamic Engine)
+ * Features:
+ * 1. Adaptive Dynamic Timeouts: Fast 8.5s fail-fast for catalogue reads (triggers instant IndexedDB fallback),
+ *    and resilient 60-90s timeouts for heavy OCR and booking writes.
+ * 2. Request deduplication to prevent duplicate server roundtrips.
+ * 3. CORS preflight bypass for Google Apps Script Web App endpoints (text/plain payload).
+ * 4. Resilient error extraction and seamless cross-platform exposure.
  */
 
 const Api = {
   activeRequests: new Map(),
 
   /**
-   * Core fetch wrapper with deduplication and error handling
+   * Action-specific timeout resolver (Milliseconds)
+   */
+  getTimeoutForAction(action) {
+    const fastReadActions = [
+      'getTests',
+      'getPackages',
+      'getTestById',
+      'getPackageById',
+      'searchTests',
+      'searchPackages',
+      'getProfile',
+      'getBookingsByPatient',
+      'getBookingDetails',
+      'getAdminTests',
+      'getAdminPackages',
+      'getAllBookings',
+      'getPaymentStatus',
+      'aiSearch'
+    ];
+
+    if (fastReadActions.includes(action)) {
+      return 8500; // 8.5 seconds: Fails fast on 2G/3G drops to trigger instant local cache fallback
+    }
+
+    if (action === 'processPrescriptionOCR' || action === 'uploadPrescription') {
+      return 90000; // 90 seconds for large Base64 image compression & AI OCR vision processing
+    }
+
+    return 45000; // 45 seconds default for bookings, OTPs, and state modifications
+  },
+
+  /**
+   * Core fetch wrapper with deduplication and adaptive timeout
    * @param {string} action - API action name
    * @param {Object} params - Request payload/parameters
    * @param {boolean} useCache - Whether to allow deduplication cache
+   * @param {number|null} customTimeout - Explicit timeout override
    * @returns {Promise<any>}
    */
-  async request(action, params = {}, useCache = true) {
+  async request(action, params = {}, useCache = true, customTimeout = null) {
     const requestKey = `${action}_${JSON.stringify(params)}`;
 
     if (useCache && this.activeRequests.has(requestKey)) {
@@ -36,7 +73,7 @@ const Api = {
         const url = new URL(baseUrl);
         url.searchParams.append('action', action);
 
-        // Action safety: Body-layum action serthu anuppugirom (GAS redirect loss-ai thadukka)
+        // Action safety: Body-லும் action சேர்த்து அனுப்பப்படுகிறது (GAS redirect loss-ஐத் தடுக்க)
         const payloadData = {
           action: action,
           ...params
@@ -45,32 +82,42 @@ const Api = {
         const options = {
           method: 'POST',
           headers: {
-            'Content-Type': 'text/plain;charset=utf-8', // Avoid CORS preflight issues with GAS
+            'Content-Type': 'text/plain;charset=utf-8', // Avoids CORS preflight OPTIONS roundtrip with GAS
           },
           body: JSON.stringify(payloadData)
         };
 
+        const timeoutMs = customTimeout || this.getTimeoutForAction(action);
         const controller = new AbortController();
-        // 90s timeout for mobile networks and server writes
-        const timeoutId = setTimeout(() => controller.abort(), 90000);
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
         options.signal = controller.signal;
 
-        const response = await fetch(url.toString(), options);
+        let response;
+        try {
+          response = await fetch(url.toString(), options);
+        } catch (fetchErr) {
+          clearTimeout(timeoutId);
+          if (fetchErr.name === 'AbortError') {
+            throw new Error(`Server request timed out after ${Math.round(timeoutMs / 1000)}s for action: ${action}`);
+          }
+          throw fetchErr;
+        }
+
         clearTimeout(timeoutId);
 
         if (!response.ok) {
-          throw new Error(`Server error: ${response.status}`);
+          throw new Error(`Server error response: ${response.status}`);
         }
 
         const data = await response.json();
         
-        if (data.status === 'error') {
+        if (data && data.status === 'error') {
           throw new Error(data.message || 'Unknown server error');
         }
 
-        return data.data !== undefined ? data.data : data;
+        return (data && data.data !== undefined) ? data.data : data;
       } catch (error) {
-        console.error(`API Error [${action}]:`, error);
+        console.warn(`API [${action}] Notice:`, error.message || error);
         throw error;
       } finally {
         this.activeRequests.delete(requestKey);
@@ -101,7 +148,7 @@ const Api = {
   },
 
   async getProfile(userId) {
-    return this.request('getProfile', { userId }, false);
+    return this.request('getProfile', { userId, mobile: userId }, false);
   },
 
   async updateProfile(profileData) {
@@ -109,7 +156,7 @@ const Api = {
   },
 
   // ==========================================================
-  // CATALOGUE APIS
+  // CATALOGUE APIS (FAST READ TIMEOUTS)
   // ==========================================================
 
   async getTests() {
@@ -136,8 +183,12 @@ const Api = {
     return this.request('searchPackages', { query }, false);
   },
 
+  async aiSearch(query) {
+    return this.request('aiSearch', { query }, false);
+  },
+
   // ==========================================================
-  // PRESCRIPTION & OCR APIS (IMAGES ONLY)
+  // PRESCRIPTION & OCR APIS (IMAGES ONLY - RESILIENT TIMEOUTS)
   // ==========================================================
 
   async uploadPrescription(payload) {
@@ -160,12 +211,8 @@ const Api = {
     return this.request('confirmPrescriptionTests', { prescriptionId, confirmedTestIds }, false);
   },
 
-  async aiSearch(query) {
-    return this.request('aiSearch', { query }, false);
-  },
-
   // ==========================================================
-  // BOOKINGS & LIVE SAMPLE TRACKING APIS
+  // BOOKINGS & LIVE TRACKING APIS
   // ==========================================================
 
   async createBooking(bookingData) {
@@ -181,7 +228,7 @@ const Api = {
   },
 
   // ==========================================================
-  // DIRECT UPI INTENT APIS
+  // DIRECT UPI INTENT & PAYMENT STATUS APIS
   // ==========================================================
 
   async createPendingUPIBooking(pendingPayload) {

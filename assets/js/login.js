@@ -1,13 +1,13 @@
 /* file: assets/js/login.js */
 /**
- * Selfcare Diagnostics - Permanent Mobile + OTP Authentication Engine v4.1.0
+ * Selfcare Diagnostics - Permanent Mobile + OTP Authentication Engine v4.2.0
  * Features:
- * 1. Live Google Sheets Backend Sync: Registers & updates 'Customers' sheet on OTP verify.
- * 2. Top OTP Display Banner with Instant Auto-Fill Engine into 4-digit boxes.
- * 3. Server-side dynamic OTP request via Api.requestOtp.
- * 4. Zero Session Timeout: User stays logged in forever until manual logout.
- * 5. Multi-tenant Cart Vault: Isolated cart persistence per mobile number.
- * 6. Resilient offline fallback support for dev/frictionless testing.
+ * 1. Deep-Link & Referral Auto-Restore: Seamlessly handles returnUrl, redirect & scd_pending_share_url.
+ * 2. Strict Multi-tenant Cart Isolation: Preserves & vaults cart items per mobile number without data leaks.
+ * 3. Live Google Sheets Backend Sync: Registers & verifies customer sessions via Api.requestOtp & verifyOtp.
+ * 4. Top OTP Display Banner with Instant Auto-Fill Engine into 4-digit boxes.
+ * 5. Zero Session Timeout: User stays logged in permanently until manual logout.
+ * 6. Resilient offline fallback support (Master OTP 1234 for testing).
  */
 
 const LoginPage = {
@@ -21,8 +21,16 @@ const LoginPage = {
     this.setupOtpAutoAdvance();
   },
 
+  safeShowToast(message, type = 'info') {
+    if (typeof Utils !== 'undefined' && Utils.showToast) {
+      Utils.showToast(message, type);
+    } else {
+      alert(message);
+    }
+  },
+
   /**
-   * If customer is already logged in, skip login page entirely and go directly to customer.html
+   * If customer is already logged in, skip login page entirely and restore intended deep-link
    */
   checkIfAlreadyLoggedIn() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -38,8 +46,14 @@ const LoginPage = {
 
     // Permanent session verification
     if (activeUser && authToken) {
-      const returnUrl = urlParams.get('returnUrl') || 'customer.html';
-      window.location.replace(returnUrl);
+      const pendingShare = localStorage.getItem('scd_pending_share_url');
+      const targetRedirect = urlParams.get('returnUrl') || urlParams.get('redirect') || pendingShare || 'customer.html';
+      
+      if (pendingShare) {
+        localStorage.removeItem('scd_pending_share_url');
+      }
+      
+      window.location.replace(targetRedirect);
     }
   },
 
@@ -59,7 +73,7 @@ const LoginPage = {
     if (!/^[6-9]\d{9}$/.test(mobile)) {
       const errorHint = document.getElementById('mobile-error-hint');
       if (errorHint) errorHint.style.display = 'block';
-      if (typeof Utils !== 'undefined') Utils.showToast('Please enter a valid 10-digit mobile number', 'error');
+      this.safeShowToast('Please enter a valid 10-digit mobile number', 'error');
       return;
     }
 
@@ -103,9 +117,7 @@ const LoginPage = {
         sendBtn.disabled = false;
         sendBtn.textContent = 'Get OTP ➔';
       }
-      if (typeof Utils !== 'undefined') {
-        Utils.showToast(err.message || 'Error sending OTP. Please try again.', 'error');
-      }
+      this.safeShowToast(err.message || 'Error sending OTP. Please try again.', 'error');
     }
   },
 
@@ -117,7 +129,7 @@ const LoginPage = {
     document.getElementById('view-otp-step').style.display = 'block';
     document.getElementById('disp-entered-mobile').textContent = `+91 ${this.mobileNumber}`;
 
-    // 1. Mela irukkira Top Banner-la OTP-ai display seigirom
+    // 1. Top Banner Display
     const topBadge = document.getElementById('top-otp-badge');
     const topOtpDisp = document.getElementById('top-otp-display');
     if (topBadge && topOtpDisp) {
@@ -125,11 +137,11 @@ const LoginPage = {
       topBadge.style.display = 'flex';
     }
 
-    // 2. Pazhaiya inputs-ai clear seigirom
+    // 2. Clear old input boxes
     const boxes = document.querySelectorAll('.otp-digit');
     boxes.forEach(b => b.value = '');
 
-    // 3. ✨ AUTOMATIC AUTO-FILL: 250ms delay-kku pinbu 4 kattangalilum thaanaagave fill aagum
+    // 3. Instant auto-fill with smooth tactile delay
     setTimeout(() => {
       this.autoFillOtp();
     }, 250);
@@ -151,7 +163,6 @@ const LoginPage = {
       }
     });
 
-    // Kadaisi input box-kku focus kondu selkirom
     if (boxes[boxes.length - 1]) {
       boxes[boxes.length - 1].focus();
     }
@@ -247,7 +258,7 @@ const LoginPage = {
     const enteredOtp = Array.from(inputs).map(i => i.value).join('');
 
     if (enteredOtp.length < 4) {
-      if (typeof Utils !== 'undefined') Utils.showToast('Please enter complete 4-digit OTP', 'error');
+      this.safeShowToast('Please enter complete 4-digit OTP', 'error');
       return;
     }
 
@@ -285,13 +296,18 @@ const LoginPage = {
       const currentMobile = this.mobileNumber;
       const previousMobile = localStorage.getItem('selfcare_active_user');
 
-      // 3. Stash previous user's cart safely before switching numbers
+      // 3. Stash previous user's cart safely before switching numbers and prevent data contamination
       if (previousMobile && previousMobile !== currentMobile) {
         try {
           const activeCart = localStorage.getItem('selfcare_cart');
           if (activeCart) localStorage.setItem(`selfcare_cart_${previousMobile}`, activeCart);
+          
           const activeFam = localStorage.getItem('selfcare_family_members');
           if (activeFam) localStorage.setItem(`selfcare_family_${previousMobile}`, activeFam);
+          
+          // Purge generic legacy keys to prevent cart leaking into new account
+          localStorage.removeItem('cart');
+          localStorage.removeItem('selfcare_cart');
         } catch (e) {}
       }
 
@@ -319,21 +335,28 @@ const LoginPage = {
         const userVaultCart = localStorage.getItem(`selfcare_cart_${currentMobile}`);
         if (userVaultCart) {
           localStorage.setItem('selfcare_cart', userVaultCart);
+          localStorage.setItem('cart', userVaultCart);
         } else {
-          localStorage.setItem('selfcare_cart', JSON.stringify([]));
-          localStorage.setItem(`selfcare_cart_${currentMobile}`, JSON.stringify([]));
+          const emptyCart = JSON.stringify([]);
+          localStorage.setItem('selfcare_cart', emptyCart);
+          localStorage.setItem('cart', emptyCart);
+          localStorage.setItem(`selfcare_cart_${currentMobile}`, emptyCart);
         }
       } catch (e) {}
 
-      // 6. Success notification and redirection
-      if (typeof Utils !== 'undefined') {
-        Utils.showToast('Login successful! Welcome to Selfcare Diagnostics', 'success');
-      }
+      // 6. Success notification and Smart Deep-Link Redirection
+      this.safeShowToast('Login successful! Welcome to Selfcare Diagnostics', 'success');
 
       setTimeout(() => {
         const urlParams = new URLSearchParams(window.location.search);
-        const returnUrl = urlParams.get('returnUrl') || 'customer.html';
-        window.location.replace(returnUrl);
+        const pendingShare = localStorage.getItem('scd_pending_share_url');
+        const targetRedirect = urlParams.get('returnUrl') || urlParams.get('redirect') || pendingShare || 'customer.html';
+
+        if (pendingShare) {
+          localStorage.removeItem('scd_pending_share_url');
+        }
+
+        window.location.replace(targetRedirect);
       }, 500);
 
     } catch (err) {
@@ -341,11 +364,7 @@ const LoginPage = {
         verifyBtn.disabled = false;
         verifyBtn.textContent = 'Verify OTP ➔';
       }
-      if (typeof Utils !== 'undefined') {
-        Utils.showToast(err.message || 'Invalid OTP. Please try again.', 'error');
-      } else {
-        alert(err.message || 'Invalid OTP. Please try again.');
-      }
+      this.safeShowToast(err.message || 'Invalid OTP. Please try again.', 'error');
       inputs.forEach(i => i.value = '');
       if (inputs[0]) inputs[0].focus();
     }
@@ -363,12 +382,12 @@ const LoginPage = {
     localStorage.removeItem('selfcare_active_user');
     localStorage.removeItem('selfcare_auth_token');
     localStorage.removeItem('selfcare_cart');
+    localStorage.removeItem('cart');
     localStorage.removeItem('selfcare_customer_profile');
     localStorage.removeItem('selfcare_family_members');
+    localStorage.removeItem('scd_pending_share_url');
 
-    if (typeof Utils !== 'undefined') {
-      Utils.showToast('You have been logged out securely.', 'info');
-    }
+    this.safeShowToast('You have been logged out securely.', 'info');
   }
 };
 

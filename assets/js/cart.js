@@ -1,12 +1,15 @@
 /* file: assets/js/cart.js */
 /**
- * Selfcare Diagnostics - Slide-by-Slide Wizard Engine v7.7.0
+ * Selfcare Diagnostics - Slide-by-Slide Wizard Engine v8.3.0
  * Features:
- * 1. Multi-Patient Family Booking (Select multiple family members in Step 2).
- * 2. Patient-Wise Grouped Tests in Step 4 with dynamic test reassignment.
- * 3. Home Collection Threshold: FREE (₹0) for combined orders >= ₹500; ₹100/₹150 for < ₹500.
- * 4. Automatic Session State Persistence (Remembers Slide & User Selections across page navigation).
- * 5. Multi-Patient Verification Modal & Grouped WhatsApp Booking Summary.
+ * 1. Slide 1 has both Cart Items & Patient Selection engine.
+ * 2. Slide 2 has Collection Address & Appointment Schedule slots.
+ * 3. Mobile Number Editing inside Edit Address & GPS modal.
+ * 4. Unified 3D Patient Card with dedicated + Add Tests / + Add Packages buttons.
+ * 5. Automatic Session State Persistence (Slide & selections remembered).
+ * 6. Dynamic Conflict Validation during Test Reassignment.
+ * 7. Multi-Patient Verification Modal & Grouped WhatsApp Booking Summary.
+ * 8. Direct UPI Gateway + Fallback Link Integration.
  */
 
 const CartPage = {
@@ -29,7 +32,7 @@ const CartPage = {
   selectedTimeSlot: '',
 
   selectedPaymentMode: null,
-  collectionType: null,
+  collectionType: 'home', // Defaults to 'home' so doorstep fee/free threshold calculates right on Slide 1
   appliedCoupon: null,
   couponDiscountAmount: 0,
   onlineDiscountAmount: 0,
@@ -91,7 +94,7 @@ const CartPage = {
       } else if (savedSlide && savedSlide >= 1 && savedSlide <= 4 && this.cart.length > 0) {
         this.goToSlide(savedSlide, true);
       } else {
-        this.goToSlide(1);
+        this.goToSlide(1, true);
       }
     } catch (err) {
       console.error('CartPage init error:', err);
@@ -108,6 +111,8 @@ const CartPage = {
       const savedCollection = sessionStorage.getItem('selfcare_cart_collection_type');
       if (savedCollection) {
         this.selectCollectionType(savedCollection, false);
+      } else {
+        this.selectCollectionType('home', false);
       }
 
       const savedPatients = sessionStorage.getItem('selfcare_cart_patient_ids');
@@ -155,11 +160,28 @@ const CartPage = {
       sessionStorage.removeItem('selfcare_cart_patient_id');
       sessionStorage.removeItem('selfcare_cart_slot_day');
       sessionStorage.removeItem('selfcare_cart_time_slot');
+      sessionStorage.removeItem('selfcare_target_patient_id');
     } catch (e) {}
   },
 
   // ==========================================================
+  // INDIVIDUAL PATIENT NAVIGATION HELPER
+  // ==========================================================
+  navigateToAddItems(patientId, type) {
+    const targetId = patientId || this.selectedPatientId || 'SELF';
+    sessionStorage.setItem('selfcare_target_patient_id', targetId);
+    sessionStorage.setItem('selfcare_cart_slide', '1');
+
+    const targetUrl = (type === 'packages') ? 'packages.html' : 'tests.html';
+    window.location.href = `${targetUrl}?patientId=${encodeURIComponent(targetId)}`;
+  },
+
+  // ==========================================================
   // SLIDE-BY-SLIDE WIZARD NAVIGATION
+  // Slide 1: Patient Selection, Tests & Summary
+  // Slide 2: Address & Schedule
+  // Slide 3: Payment & Offers
+  // Slide 4: Collection Mode
   // ==========================================================
   goToSlide(slideIndex, force = false) {
     if (slideIndex < 1 || slideIndex > this.totalSlides) return;
@@ -170,21 +192,19 @@ const CartPage = {
     }
 
     if (!force && !this.isAddonMode) {
-      if (slideIndex > 1 && !this.collectionType) {
-        Utils.showToast('Please select Home Pickup or Lab Walk-in to continue', 'error');
-        return;
-      }
-      if (slideIndex > 2) {
+      if (slideIndex > 1) {
+        if (!this.cart || this.cart.length === 0) {
+          Utils.showToast('Your cart is empty', 'error');
+          return;
+        }
         if (!this.selectedPatientIds || this.selectedPatientIds.length === 0) {
           Utils.showToast('Please select at least one family member', 'error');
           return;
         }
+      }
+      if (slideIndex > 2) {
         if (!this.selectedPatientPhone || this.selectedPatientPhone.length !== 10) {
           Utils.showToast(`Please enter a valid 10-digit mobile number for ${this.selectedPatientName}`, 'error');
-          return;
-        }
-        if (this.collectionType === 'home' && (!this.currentPickupAddress || !this.currentPickupAddress.trim())) {
-          Utils.showToast('Please provide a valid doorstep pickup address', 'error');
           return;
         }
         if (!this.selectedTimeSlot) {
@@ -196,11 +216,6 @@ const CartPage = {
         Utils.showToast('Please select a payment method (UPI or Cash) to proceed', 'error');
         return;
       }
-    }
-
-    if (this.isAddonMode && slideIndex === 4 && !this.selectedPaymentMode) {
-      Utils.showToast('Please select a payment method (UPI or Cash) to view summary', 'error');
-      return;
     }
 
     this.currentSlide = slideIndex;
@@ -274,17 +289,17 @@ const CartPage = {
     }
 
     if (this.currentSlide === 1) {
-      nextBtn.textContent = 'Select Patients ➔';
-      nextBtn.disabled = !this.collectionType;
+      nextBtn.textContent = 'Schedule & Address ➔';
+      nextBtn.disabled = this.cart.length === 0;
     } else if (this.currentSlide === 2) {
       nextBtn.textContent = 'Payment & Offers ➔';
       nextBtn.disabled = false;
     } else if (this.currentSlide === 3) {
-      nextBtn.textContent = 'Review Order ➔';
+      nextBtn.textContent = 'Select Collection ➔';
       nextBtn.disabled = false;
     } else if (this.currentSlide === 4) {
       nextBtn.textContent = this.isAddonMode ? 'Pay & Add Tests ➔' : 'Confirm Booking ➔';
-      nextBtn.disabled = false;
+      nextBtn.disabled = !this.collectionType;
     }
   },
 
@@ -301,12 +316,24 @@ const CartPage = {
 
   handleFloatingActionButton() {
     if (this.currentSlide === 1) {
-      if (!this.collectionType) {
-        Utils.showToast('Please select Home Pickup or Lab Walk-in', 'error');
+      if (!this.cart || this.cart.length === 0) {
+        Utils.showToast('Your cart is empty', 'error');
+        return;
+      }
+      if (!this.selectedPatientIds || this.selectedPatientIds.length === 0) {
+        Utils.showToast('Please select at least one family member', 'error');
         return;
       }
       this.goToSlide(2);
     } else if (this.currentSlide === 2) {
+      if (!this.selectedPatientPhone || this.selectedPatientPhone.length !== 10) {
+        Utils.showToast(`Please enter a valid 10-digit mobile number for ${this.selectedPatientName}`, 'error');
+        return;
+      }
+      if (!this.selectedTimeSlot) {
+        Utils.showToast('Please select a 30-minute collection time slot', 'error');
+        return;
+      }
       this.goToSlide(3);
     } else if (this.currentSlide === 3) {
       if (!this.selectedPaymentMode) {
@@ -315,12 +342,16 @@ const CartPage = {
       }
       this.goToSlide(4);
     } else if (this.currentSlide === 4) {
+      if (!this.collectionType) {
+        Utils.showToast('Please select Home Pickup or Lab Walk-in', 'error');
+        return;
+      }
       this.openPatientConfirmModal();
     }
   },
 
   // ==========================================================
-  // SLIDE 1: COLLECTION TYPE & THRESHOLD CHARGE LOGIC
+  // SLIDE 4: COLLECTION TYPE & THRESHOLD CHARGE LOGIC
   // ==========================================================
   selectCollectionType(type, persist = true) {
     if (this.isAddonMode) {
@@ -366,7 +397,6 @@ const CartPage = {
   calculateDoorstepCharge(subtotal = null) {
     if (this.isAddonMode) return 0;
     if (this.collectionType === 'lab') return 0;
-    if (!this.collectionType) return 0;
     if (this.cart.length === 0) return 0;
 
     let total = subtotal;
@@ -377,12 +407,11 @@ const CartPage = {
       }, 0);
     }
 
-    // Combined 500 or above -> No home collection charges (FREE)
+    // Combined 500 or above -> FREE (₹0)
     if (total >= 500) {
       return 0;
     }
 
-    // Below 500 -> Add charges (PPBS dual visit: ₹150; Standard visit: ₹100)
     const isPPBSTest = (item) => {
       const name = (item.name || item.TestName || '').toUpperCase();
       const code = (item.code || item.TestCode || '').toUpperCase();
@@ -401,7 +430,7 @@ const CartPage = {
     if (!badge) return;
 
     if (subtotalNewTests >= 500) {
-      badge.textContent = 'Collection Charge: FREE (₹0 - Orders ₹500+)';
+      badge.textContent = 'Collection Charge: FREE';
       badge.classList.add('free-tag');
     } else {
       const isPPBSTest = (item) => {
@@ -467,7 +496,6 @@ const CartPage = {
     const couponRow = document.getElementById('bill-coupon-row');
     const couponLabel = document.getElementById('bill-coupon-label');
     const couponAmtEl = document.getElementById('bill-coupon-amount');
-    const onlineRow = document.getElementById('bill-online-pay-row');
     const chargeLabel = document.getElementById('bill-collection-charge-label');
     const chargeVal = document.getElementById('bill-collection-charge-val');
     const finalPayableEl = document.getElementById('bill-final-payable');
@@ -484,8 +512,6 @@ const CartPage = {
       couponRow.style.display = 'none';
     }
 
-    if (onlineRow) onlineRow.style.display = 'none';
-
     if (chargeVal) {
       if (this.isAddonMode) {
         chargeVal.textContent = 'FREE (₹0 - Clubbed)';
@@ -497,7 +523,7 @@ const CartPage = {
         if (chargeLabel) chargeLabel.textContent = 'Direct Lab Visit Fee:';
       } else if (this.collectionType === 'home') {
         if (this.doorstepCharge === 0) {
-          chargeVal.textContent = 'FREE (₹0 - Order ₹500+)';
+          chargeVal.textContent = 'FREE';
           chargeVal.classList.add('green-val');
           if (chargeLabel) chargeLabel.textContent = 'Doorstep Sample Collection:';
         } else {
@@ -510,7 +536,7 @@ const CartPage = {
           }
         }
       } else {
-        chargeVal.textContent = 'Select in Step 1';
+        chargeVal.textContent = 'FREE (₹0 - Order ₹500+)';
       }
     }
 
@@ -519,7 +545,7 @@ const CartPage = {
   },
 
   // ==========================================================
-  // SLIDE 2: MULTI-PATIENT SELECTION ENGINE
+  // MULTI-PATIENT SELECTION ENGINE (SLIDE 1)
   // ==========================================================
   syncPrimaryPatientDetails() {
     if (!this.selectedPatientIds || this.selectedPatientIds.length === 0) {
@@ -566,7 +592,6 @@ const CartPage = {
     this.renderPatientChips();
     this.renderSelectedPatientCard();
 
-    // Re-verify items mapped to patients that might have been removed
     const activeFirstId = this.selectedPatientIds[0];
     let cartModified = false;
     this.cart.forEach(item => {
@@ -683,15 +708,35 @@ const CartPage = {
   },
 
   // ==========================================================
-  // SLIDE 4: MULTI-PATIENT GROUPED CART RENDERING
+  // SLIDE 1: UNIFIED PATIENT-WISE GROUPED CART RENDERING
   // ==========================================================
   assignItemPatient(itemIndex, targetPatientId) {
     if (itemIndex >= 0 && itemIndex < this.cart.length) {
+      const targetItem = this.cart[itemIndex];
+
+      if (typeof ConflictValidator !== 'undefined') {
+        try {
+          const targetPatientItems = this.cart.filter((it, idx) => idx !== itemIndex && (it.patientId || 'SELF') === targetPatientId);
+          const conflict = ConflictValidator.checkConflict(targetItem, targetPatientItems);
+          if (conflict && conflict.hasConflict) {
+            if (typeof Utils !== 'undefined') {
+              Utils.showToast(conflict.reason, 'error');
+            } else {
+              alert(conflict.reason);
+            }
+            this.renderItemsList();
+            return;
+          }
+        } catch (e) {
+          console.warn('Conflict check error on reassign:', e);
+        }
+      }
+
       this.cart[itemIndex].patientId = targetPatientId;
       this.saveCartState();
       this.renderItemsList();
       const p = this.familyMembers.find(m => m.id === targetPatientId);
-      if (p) Utils.showToast(`Test assigned to ${p.name}`, 'info');
+      if (p && typeof Utils !== 'undefined') Utils.showToast(`Test assigned to ${p.name}`, 'info');
     }
   },
 
@@ -703,121 +748,100 @@ const CartPage = {
     if (countBadge) countBadge.textContent = `${this.cart.length} Items`;
 
     const selectedMembers = this.familyMembers.filter(m => this.selectedPatientIds.includes(m.id));
-    const fallbackPatientId = this.selectedPatientIds[0] || 'SELF';
+    const effectiveMembers = (selectedMembers && selectedMembers.length > 0) 
+      ? selectedMembers 
+      : [this.familyMembers[0] || { id: 'SELF', name: 'Self', relation: 'Self' }];
+    
+    const fallbackPatientId = effectiveMembers[0].id || 'SELF';
 
-    // Ensure all cart items have a valid patientId
     this.cart.forEach(item => {
       if (!item.patientId || !this.selectedPatientIds.includes(item.patientId)) {
         item.patientId = fallbackPatientId;
       }
     });
 
-    // Single Patient Flow
-    if (selectedMembers.length <= 1) {
-      container.innerHTML = this.cart.map((item, index) => {
-        const isPaidItem = Boolean(item.isExistingBookingItem);
-        const isPackage = item.type === 'package' || String(item.PackageID || item.PackageCode || '').startsWith('PKG');
-        const name = item.name || item.TestName || item.PackageName || 'Diagnostic Item';
-        const code = item.code || item.TestCode || item.PackageCode || (isPackage ? 'PACKAGE' : 'TEST');
-        const offerPrice = isPaidItem ? 0 : Number(item.price || item.OfferPrice || 0);
-        const mrp = isPaidItem ? Number(item.originalPrice || 0) : Number(item.mrp || item.MRP || offerPrice);
-
-        return `
-          <div class="cart-item-card glass-panel-3d" style="padding:10px 12px; margin-bottom:8px; ${isPaidItem ? 'background: #F9FAFB; border-color: #A7F3D0;' : ''}">
-            <div class="item-main-details" style="flex:1;">
-              <div style="display:flex; gap:6px; margin-bottom:3px; align-items:center;">
-                <span class="type-badge ${isPackage ? 'package-type' : 'test-type'}" style="font-size:9px; font-weight:800; padding:2px 5px; border-radius:4px; background:#E0F2FE; color:#0369A1;">
-                  ${isPackage ? '📦 PACKAGE' : '🧪 TEST'}
-                </span>
-                <span style="font-size:9px; font-weight:700; color:#64748B;">${Utils.escapeHtml(code)}</span>
-                ${isPaidItem ? `<span style="font-size:8.5px; font-weight:800; background:#D1FAE5; color:#065F46; padding:2px 5px; border-radius:4px;">PAID</span>` : ''}
-              </div>
-              <h4 style="font-size:12.5px; font-weight:800; color:#1E293B; margin:0 0 3px 0;">${Utils.escapeHtml(name)}</h4>
-              <div style="font-size:12px; font-weight:800; color:#078866;">
-                ${mrp > offerPrice ? `<span style="text-decoration:line-through; color:#94A3B8; font-size:10.5px; margin-right:5px;">${Utils.formatCurrency(mrp)}</span>` : ''}
-                <span>${Utils.formatCurrency(offerPrice)}</span>
-                ${isPaidItem ? `<span style="font-size:10px; font-weight:700; color:#536E66; margin-left:4px;">(Paid: ${Utils.formatCurrency(item.originalPrice || 0)})</span>` : ''}
-              </div>
-            </div>
-            <div style="text-align:right; margin-left:10px;">
-              ${isPaidItem ? `
-                <span style="font-size:10px; font-weight:800; color:#047857; background:#ECFDF5; padding:4px 8px; border-radius:6px; border:1px solid #A7F3D0;">✓ Paid</span>
-              ` : `
-                <button type="button" onclick="CartPage.removeItem(${index})" style="background:none; border:none; cursor:pointer; font-size:14px;" title="Remove">🗑️</button>
-              `}
-            </div>
-          </div>
-        `;
-      }).join('');
-      return;
-    }
-
-    // Multi-Patient Grouped Flow
     let groupedHtml = '';
 
-    selectedMembers.forEach(member => {
+    effectiveMembers.forEach(member => {
       const memberItems = this.cart
         .map((item, idx) => ({ ...item, originalIndex: idx }))
         .filter(item => item.patientId === member.id);
 
       groupedHtml += `
-        <div class="patient-tests-group-card glass-panel-3d" style="margin-bottom:12px; padding:10px 12px; border:1.5px solid rgba(7, 136, 102, 0.25);">
-          <div class="patient-group-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid #E2E8F0;">
+        <div class="patient-tests-group-card glass-panel-3d animate-3d-card">
+          <div class="patient-group-header">
             <div>
-              <span class="patient-group-name" style="font-size:12.5px; font-weight:800; color:#045D49;">
+              <span class="patient-group-name">
                 👤 ${Utils.escapeHtml(member.name)} (${Utils.escapeHtml(member.relation || 'Member')})
               </span>
             </div>
-            <span style="font-size:10px; font-weight:800; color:#078866; background:#ECFDF5; padding:2px 7px; border-radius:6px; border:1px solid #A7F3D0;">
+            <span class="patient-tests-badge">
               ${memberItems.length} Tests
             </span>
           </div>
 
           ${memberItems.length === 0 ? `
-            <div style="padding:10px; text-align:center; background:rgba(248, 250, 252, 0.7); border-radius:8px; margin-bottom:6px;">
-              <p style="font-size:11px; color:#64748B; margin:0 0 6px 0;">No tests assigned for ${Utils.escapeHtml(member.name)} yet.</p>
-              <span style="font-size:10px; font-weight:700; color:#078866;">Assign from other tests or add from catalog</span>
+            <div class="patient-empty-tests-box">
+              <p>No tests assigned for ${Utils.escapeHtml(member.name)} yet.</p>
+              <span>Use buttons below to add tests or packages</span>
             </div>
           ` : memberItems.map(item => {
             const isPaidItem = Boolean(item.isExistingBookingItem);
             const isPackage = item.type === 'package' || String(item.PackageID || item.PackageCode || '').startsWith('PKG');
             const name = item.name || item.TestName || item.PackageName || 'Diagnostic Item';
             const offerPrice = isPaidItem ? 0 : Number(item.price || item.OfferPrice || 0);
+            const mrp = isPaidItem ? Number(item.originalPrice || 0) : Number(item.mrp || item.MRP || offerPrice);
 
             return `
-              <div class="cart-item-card" style="padding:8px 10px; margin-bottom:6px; background:#FFFFFF; border:1px solid #E2E8F0; border-radius:10px; display:flex; justify-content:space-between; align-items:center;">
-                <div style="flex:1;">
-                  <div style="display:flex; gap:6px; align-items:center; margin-bottom:2px;">
-                    <span style="font-size:8.5px; font-weight:800; padding:1px 5px; border-radius:4px; background:#E0F2FE; color:#0369A1;">
+              <div class="cart-item-card glass-panel-3d-item">
+                <div class="item-main-details">
+                  <div class="item-meta-row">
+                    <span class="type-badge ${isPackage ? 'package-type' : 'test-type'}">
                       ${isPackage ? 'PACKAGE' : 'TEST'}
                     </span>
-                    <strong style="font-size:12px; color:#1E293B;">${Utils.escapeHtml(name)}</strong>
+                    <span class="item-code-tag">${Utils.escapeHtml(item.code || item.TestCode || item.PackageCode || '')}</span>
+                    ${isPaidItem ? `<span class="paid-tag">PAID</span>` : ''}
                   </div>
-                  <div style="font-size:11.5px; font-weight:800; color:#078866;">
-                    ${Utils.formatCurrency(offerPrice)}
+                  <h4 class="item-title">${Utils.escapeHtml(name)}</h4>
+                  <div class="item-price-row">
+                    ${(!isPaidItem && mrp > offerPrice) ? `<span class="item-mrp-strike">${Utils.formatCurrency(mrp)}</span>` : ''}
+                    <span class="item-offer-price">${Utils.formatCurrency(offerPrice)}</span>
+                    ${isPaidItem ? `<span class="item-paid-note">(Paid: ${Utils.formatCurrency(item.originalPrice || 0)})</span>` : ''}
                   </div>
                 </div>
 
-                <div style="display:flex; align-items:center; gap:6px;">
-                  <!-- Reassign Patient Dropdown -->
-                  <select style="font-size:10px; font-weight:700; padding:3px 5px; border-radius:6px; border:1px solid #CBD5E1; background:#F8FAFC; color:#334155; outline:none;"
-                    onchange="CartPage.assignItemPatient(${item.originalIndex}, this.value)">
-                    ${selectedMembers.map(m => `
-                      <option value="${m.id}" ${m.id === member.id ? 'selected' : ''}>
-                        For: ${m.name}
-                      </option>
-                    `).join('')}
-                  </select>
+                <div class="item-actions-row">
+                  ${effectiveMembers.length > 1 ? `
+                    <select class="patient-reassign-select" onchange="CartPage.assignItemPatient(${item.originalIndex}, this.value)">
+                      ${effectiveMembers.map(m => `
+                        <option value="${m.id}" ${m.id === member.id ? 'selected' : ''}>
+                          For: ${m.name}
+                        </option>
+                      `).join('')}
+                    </select>
+                  ` : ''}
 
                   ${isPaidItem ? `
-                    <span style="font-size:9.5px; font-weight:800; color:#047857;">✓</span>
+                    <span class="item-paid-badge">✓ Paid</span>
                   ` : `
-                    <button type="button" onclick="CartPage.removeItem(${item.originalIndex})" style="background:none; border:none; cursor:pointer; font-size:13px;" title="Remove">🗑️</button>
+                    <button type="button" class="item-delete-btn" onclick="CartPage.removeItem(${item.originalIndex})" title="Remove item">🗑️</button>
                   `}
                 </div>
               </div>
             `;
           }).join('')}
+
+          <!-- Dedicated Per-Patient Action Buttons -->
+          <div class="patient-card-actions-row">
+            <button type="button" class="patient-action-btn add-test-sub-btn"
+              onclick="CartPage.navigateToAddItems('${member.id}', 'tests')">
+              🧪 + Add Tests
+            </button>
+            <button type="button" class="patient-action-btn add-pkg-sub-btn"
+              onclick="CartPage.navigateToAddItems('${member.id}', 'packages')">
+              📦 + Add Packages
+            </button>
+          </div>
         </div>
       `;
     });
@@ -831,7 +855,7 @@ const CartPage = {
   detectAddonBookingMode() {
     const urlParams = (typeof window !== 'undefined') ? new URLSearchParams(window.location.search) : null;
     const urlAddonId = urlParams ? urlParams.get('addonBookingId') : null;
-    const storedAddonId = localStorage.getItem('selfcare_active_addon_booking_id');
+    const storedAddonId = (typeof localStorage !== 'undefined') ? localStorage.getItem('selfcare_active_addon_booking_id') : null;
     const targetAddonId = urlAddonId || storedAddonId;
 
     if (targetAddonId) {
@@ -1130,8 +1154,8 @@ const CartPage = {
     if (clearBtn) clearBtn.style.display = 'block';
 
     this.renderAddonBannerHeader();
-    this.renderItemsList();
     this.renderPatientChips();
+    this.renderItemsList();
     this.calculateBillSummary();
   },
 
@@ -1169,14 +1193,9 @@ const CartPage = {
       return;
     }
 
-    if (!this.collectionType) {
-      Utils.showToast('Please select collection mode first', 'error');
-      this.goToSlide(1);
-      return;
-    }
-
     if (!this.cart || this.cart.length === 0) {
       Utils.showToast('Your cart is empty', 'error');
+      this.goToSlide(1);
       return;
     }
 
@@ -1189,7 +1208,7 @@ const CartPage = {
 
     if (!this.selectedPatientIds || this.selectedPatientIds.length === 0) {
       Utils.showToast('Please select at least one patient for sample pickup', 'error');
-      if (!this.isAddonMode) this.goToSlide(2);
+      this.goToSlide(1);
       return;
     }
 
@@ -1208,6 +1227,12 @@ const CartPage = {
     if (!this.selectedTimeSlot) {
       Utils.showToast('Please select a valid 30-minute collection slot', 'error');
       if (!this.isAddonMode) this.goToSlide(2);
+      return;
+    }
+
+    if (!this.collectionType) {
+      Utils.showToast('Please select collection mode (Home Pickup or Lab Walk-in)', 'error');
+      this.goToSlide(4);
       return;
     }
 
@@ -1241,7 +1266,7 @@ const CartPage = {
         multiListEl.innerHTML = selectedMembers.map((m, i) => {
           const mCount = this.cart.filter(item => item.patientId === m.id).length;
           return `
-            <div style="font-size:10.5px; font-weight:700; color:#1E293B; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:6px; padding:4px 8px; margin-bottom:4px; display:flex; justify-content:space-between;">
+            <div style="font-size:10px; font-weight:700; color:#1E293B; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:6px; padding:3px 7px; margin-bottom:3px; display:flex; justify-content:space-between;">
               <span>${i + 1}. ${m.name} (${m.relation || 'Member'})</span>
               <span style="color:#078866; font-weight:800;">${mCount} Tests</span>
             </div>
@@ -1535,7 +1560,6 @@ const CartPage = {
 
     const selectedMembers = this.familyMembers.filter(m => this.selectedPatientIds.includes(m.id));
 
-    // Formatted Test List per Patient
     let patientItemsText = '';
     if (selectedMembers.length > 1) {
       selectedMembers.forEach((member, i) => {
@@ -1580,7 +1604,7 @@ const CartPage = {
 📞 *Contact:* +91 ${this.selectedPatientPhone}
 🏥 *Collection Mode:* ${typeLabel}
 ${addressDetails}
-⏱️ *Scheduled Slot:* ${this.addonBooking.collectionDate} (${this.addonBooking.timeSlot})
+⏱ *Scheduled Slot:* ${this.addonBooking.collectionDate} (${this.addonBooking.timeSlot})
 ━━━━━━━━━━━━━━━━━━━━
 ➕ *Newly Added Tests:*
 ${newItems.map((item, i) => `${i + 1}. ${item.name} (₹${item.price})`).join('\n')}
@@ -1634,7 +1658,7 @@ _Please include these additional test tubes in the phlebotomist sample collectio
 📞 *Primary Contact:* +91 ${this.selectedPatientPhone}
 🏥 *Collection Mode:* ${typeLabel}
 ${addressDetails}
-⏱️ *Appointment Slot:* ${this.selectedSlotDay} (${this.selectedTimeSlot})
+⏱ *Appointment Slot:* ${this.selectedSlotDay} (${this.selectedTimeSlot})
 ━━━━━━━━━━━━━━━━━━━━
 🧪 *Booked Items per Patient:*
 ${patientItemsText}
@@ -1755,22 +1779,26 @@ _${isLab ? 'Direct walk-in counter booking.' : 'Please assign phlebotomist with 
   },
 
   saveCartState() {
-    const cartStr = JSON.stringify(this.cart);
-    localStorage.setItem('cart', cartStr);
-    localStorage.setItem('selfcare_cart', cartStr);
+    try {
+      const cartStr = JSON.stringify(this.cart);
+      localStorage.setItem('cart', cartStr);
+      localStorage.setItem('selfcare_cart', cartStr);
 
-    const activeUser = localStorage.getItem('selfcare_active_user');
-    if (activeUser) {
-      localStorage.setItem(`selfcare_cart_${activeUser}`, cartStr);
-    }
+      const activeUser = localStorage.getItem('selfcare_active_user');
+      if (activeUser) {
+        localStorage.setItem(`selfcare_cart_${activeUser}`, cartStr);
+      }
 
-    if (typeof App !== 'undefined') {
-      App.cart = this.cart;
-      if (typeof App.updateCartBadge === 'function') App.updateCartBadge();
-    }
+      if (typeof App !== 'undefined') {
+        App.cart = this.cart;
+        if (typeof App.updateCartBadge === 'function') App.updateCartBadge();
+      }
 
-    if (typeof OfflineDB !== 'undefined' && typeof OfflineDB.saveCart === 'function') {
-      OfflineDB.saveCart(this.cart).catch(() => {});
+      if (typeof OfflineDB !== 'undefined' && typeof OfflineDB.saveCart === 'function') {
+        OfflineDB.saveCart(this.cart).catch(() => {});
+      }
+    } catch (e) {
+      console.warn('Error saving cart state:', e);
     }
   },
 
@@ -1862,26 +1890,51 @@ _${isLab ? 'Direct walk-in counter booking.' : 'Please assign phlebotomist with 
   },
 
   openEditAddressModal() {
-    document.getElementById('cart-edit-address-input').value = this.currentPickupAddress || '';
-    document.getElementById('cart-edit-location-input').value = this.currentPickupLocation !== 'Not set' ? this.currentPickupLocation : '';
+    const phoneInput = document.getElementById('cart-edit-phone-input');
+    const addressInput = document.getElementById('cart-edit-address-input');
+    const locationInput = document.getElementById('cart-edit-location-input');
+
+    if (phoneInput) phoneInput.value = this.selectedPatientPhone || '';
+    if (addressInput) addressInput.value = this.currentPickupAddress || '';
+    if (locationInput) locationInput.value = this.currentPickupLocation !== 'Not set' ? this.currentPickupLocation : '';
+
     this.openModal('edit-address-modal');
   },
 
   saveUpdatedAddressLocation() {
-    const addr = document.getElementById('cart-edit-address-input').value.trim();
-    const loc = document.getElementById('cart-edit-location-input').value.trim();
+    const phoneInput = document.getElementById('cart-edit-phone-input');
+    const addressInput = document.getElementById('cart-edit-address-input');
+    const locationInput = document.getElementById('cart-edit-location-input');
+
+    const phone = phoneInput ? phoneInput.value.trim() : '';
+    const addr = addressInput ? addressInput.value.trim() : '';
+    const loc = locationInput ? locationInput.value.trim() : '';
+
+    if (!phone || phone.length !== 10 || !/^\d{10}$/.test(phone)) {
+      Utils.showToast('Please enter a valid 10-digit mobile number', 'error');
+      return;
+    }
 
     if (!addr) {
       Utils.showToast('Please enter pickup address', 'error');
       return;
     }
 
+    this.selectedPatientPhone = phone;
     this.currentPickupAddress = addr;
     this.currentPickupLocation = loc || 'Not set';
+
+    const target = this.familyMembers.find(p => p.id === this.selectedPatientId);
+    if (target) {
+      target.mobile = phone;
+      target.address = addr;
+      target.location = loc || 'Not set';
+    }
 
     this.renderSelectedPatientCard();
 
     const user = (typeof Auth !== 'undefined' && Auth.getUser && Auth.getUser()) || {};
+    user.mobile = phone;
     user.address = this.currentPickupAddress;
     user.location = this.currentPickupLocation;
     if (typeof Auth !== 'undefined' && Auth.savePermanentSession) {
@@ -1889,7 +1942,7 @@ _${isLab ? 'Direct walk-in counter booking.' : 'Please assign phlebotomist with 
     }
 
     this.closeModal('edit-address-modal');
-    Utils.showToast('Pickup address & location updated ✓', 'success');
+    Utils.showToast('Mobile, Address & Location updated ✓', 'success');
   },
 
   detectGpsLocation(targetId) {

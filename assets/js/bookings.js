@@ -1,10 +1,12 @@
 /* file: assets/js/bookings.js */
 /**
- * Selfcare Diagnostics - Direct Family & Patient Booking Tracker Engine v4.3.0
+ * Selfcare Diagnostics - Direct Family & Patient Booking Tracker Engine v5.0.0
  * Features:
- * 1. Add-on Tests to Existing Booking trigger -> Direct transfer to Cart Slide 3 (Payment & Offers)
- * 2. Live Google Sheets Backend Sync via Api.getBookingsByPatient
- * 3. Multi-Patient Support with Name-wise Switcher
+ * 1. Add-on Tests to Existing Booking trigger -> Direct transfer to Cart Slide 3 (Payment & Offers).
+ * 2. Live Google Sheets Backend Sync via Api.getBookingsByPatient.
+ * 3. Multi-Patient Support with Family Vault Awareness (selfcare_family_${mobile}).
+ * 4. Production-safe: Strictly blocks fake mock bookings when user is authenticated.
+ * 5. Full safe fallbacks for Utils and zero UI glitch rendering.
  */
 
 const BookingsPage = {
@@ -14,10 +16,38 @@ const BookingsPage = {
   currentActiveBooking: null,
 
   async init() {
-    this.loadPatientsAndBookings();
-    this.renderPatientChips();
-    await this.autoSelectInitialPatientOrUrlTarget();
-    this.syncLiveCloudBookings();
+    try {
+      this.loadPatientsAndBookings();
+      this.renderPatientChips();
+      await this.autoSelectInitialPatientOrUrlTarget();
+      this.syncLiveCloudBookings();
+    } catch (err) {
+      console.error('[Bookings] Init error:', err);
+    }
+  },
+
+  safeEscape(str) {
+    if (typeof Utils !== 'undefined' && Utils.escapeHtml) {
+      return Utils.escapeHtml(str);
+    }
+    return String(str || '').replace(/[&<>"']/g, m => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+    }[m]));
+  },
+
+  safeFormatCurrency(amt) {
+    if (typeof Utils !== 'undefined' && Utils.formatCurrency) {
+      return Utils.formatCurrency(amt);
+    }
+    return '₹' + Math.round(Number(amt) || 0).toLocaleString('en-IN');
+  },
+
+  safeShowToast(msg, type = 'info') {
+    if (typeof Utils !== 'undefined' && Utils.showToast) {
+      Utils.showToast(msg, type);
+    } else {
+      alert(msg);
+    }
   },
 
   loadPatientsAndBookings(skipMockSeeding = false) {
@@ -25,19 +55,40 @@ const BookingsPage = {
     let savedBookings = [];
 
     let selfName = 'Customer (Self)';
-    try {
-      const selfProfile = localStorage.getItem('selfcare_customer_profile');
-      if (selfProfile) {
-        const parsed = JSON.parse(selfProfile);
-        if (parsed && (parsed.name || parsed.FullName)) {
-          selfName = parsed.name || parsed.FullName;
+    let currentMobile = '';
+
+    const storedUser = (typeof Auth !== 'undefined' && Auth.getUser && Auth.getUser()) || null;
+    if (storedUser) {
+      if (storedUser.name) selfName = storedUser.name;
+      currentMobile = storedUser.mobile || storedUser.phone || '';
+    } else {
+      try {
+        const selfProfile = localStorage.getItem('selfcare_customer_profile');
+        if (selfProfile) {
+          const parsed = JSON.parse(selfProfile);
+          if (parsed && (parsed.name || parsed.FullName)) {
+            selfName = parsed.name || parsed.FullName;
+          }
+          if (parsed && (parsed.mobile || parsed.phone)) {
+            currentMobile = parsed.mobile || parsed.phone;
+          }
         }
-      }
-    } catch (e) {}
+      } catch (e) {}
+    }
+
+    if (!currentMobile) {
+      currentMobile = localStorage.getItem('selfcare_active_user') || '';
+    }
 
     let familyMembers = [];
     try {
-      const famStored = localStorage.getItem('selfcare_family_members');
+      let famStored = null;
+      if (currentMobile) {
+        famStored = localStorage.getItem(`selfcare_family_${currentMobile}`);
+      }
+      if (!famStored) {
+        famStored = localStorage.getItem('selfcare_family_members');
+      }
       if (famStored) {
         const parsedFam = JSON.parse(famStored);
         if (Array.isArray(parsedFam) && parsedFam.length > 0) {
@@ -56,7 +107,12 @@ const BookingsPage = {
       }
     } catch (e) {}
 
-    if (savedBookings.length === 0 && !skipMockSeeding) {
+    // PRODUCTION GUARD: Authenticated users must NEVER be polluted with dummy/mock bookings
+    const isLoggedIn = typeof Auth !== 'undefined' && Auth.isLoggedIn && Auth.isLoggedIn();
+    const shouldSkipMock = skipMockSeeding || isLoggedIn;
+
+    if (savedBookings.length === 0 && !shouldSkipMock) {
+      // Mock data seeded ONLY for unauthenticated first-time preview visitors
       savedPatients = [
         {
           id: 'patient_self',
@@ -101,18 +157,20 @@ const BookingsPage = {
       patientMap.set('self', { id: 'self', name: selfName, relation: 'Self' });
 
       familyMembers.forEach((fm, idx) => {
-        patientMap.set(fm.name || `fam_${idx}`, {
-          id: `fam_${idx}`,
-          name: fm.name,
+        const key = fm.id || fm.name || `fam_${idx}`;
+        patientMap.set(key, {
+          id: key,
+          name: fm.name || `Member ${idx + 1}`,
           relation: fm.relation || 'Family'
         });
       });
 
       savedBookings.forEach(b => {
         const pName = b.patientName || selfName;
-        if (!patientMap.has(pName)) {
-          patientMap.set(pName, {
-            id: pName,
+        const pKey = b.patientId || pName;
+        if (!patientMap.has(pKey)) {
+          patientMap.set(pKey, {
+            id: pKey,
             name: pName,
             relation: b.relation || 'Member'
           });
@@ -129,11 +187,17 @@ const BookingsPage = {
   async syncLiveCloudBookings() {
     if (!navigator.onLine || typeof Api === 'undefined') return;
     const user = (typeof Auth !== 'undefined' && Auth.getUser) ? Auth.getUser() : null;
-    const mobile = user ? (user.mobile || user.phone) : null;
+    const mobile = user ? (user.mobile || user.phone) : (localStorage.getItem('selfcare_active_user') || null);
     if (!mobile) return;
 
     try {
-      const liveBookings = await Api.getBookingsByPatient(mobile);
+      let liveBookings = null;
+      if (typeof Api.getBookingsByPatient === 'function') {
+        liveBookings = await Api.getBookingsByPatient(mobile);
+      } else if (typeof Api.request === 'function') {
+        liveBookings = await Api.request('getBookingsByPatient', { patientPhone: mobile }, false);
+      }
+
       if (Array.isArray(liveBookings) && liveBookings.length > 0) {
         const isMock = (id) => ['SCDBOOK000214', 'SCDBOOK000198', 'SCDBOOK000185'].includes(id);
         const existing = this.allBookings.filter(b => !isMock(b.bookingId));
@@ -160,6 +224,11 @@ const BookingsPage = {
     const container = document.getElementById('patient-chips-list');
     if (!container) return;
 
+    if (!this.patientsList || this.patientsList.length === 0) {
+      container.innerHTML = '';
+      return;
+    }
+
     container.innerHTML = this.patientsList.map((p, idx) => {
       const initial = (p.name || 'U').charAt(0).toUpperCase();
       return `
@@ -168,8 +237,8 @@ const BookingsPage = {
              onclick="BookingsPage.selectPatientByIndex(${idx})">
           <div class="chip-avatar">${initial}</div>
           <div class="chip-info">
-            <span class="chip-name">${Utils.escapeHtml(p.name)}</span>
-            <span class="chip-relation">${Utils.escapeHtml(p.relation)}</span>
+            <span class="chip-name">${this.safeEscape(p.name)}</span>
+            <span class="chip-relation">${this.safeEscape(p.relation)}</span>
           </div>
         </div>
       `;
@@ -200,7 +269,10 @@ const BookingsPage = {
       }
 
       if (match) {
-        const pIdx = this.patientsList.findIndex(p => p.name.toLowerCase() === (match.patientName || '').toLowerCase());
+        const pIdx = this.patientsList.findIndex(p => 
+          (match.patientId && p.id === match.patientId) ||
+          p.name.toLowerCase() === (match.patientName || '').toLowerCase()
+        );
         this.selectPatientByIndex(pIdx >= 0 ? pIdx : 0, match.bookingId);
         return;
       }
@@ -228,7 +300,7 @@ const BookingsPage = {
     });
 
     const patientBookings = this.allBookings.filter(b => {
-      if (b.patientId && patient.id) {
+      if (b.patientId && patient.id && patient.id !== 'self') {
         return b.patientId === patient.id || (b.patientName || '').toLowerCase() === patient.name.toLowerCase();
       }
       return (b.patientName || '').toLowerCase() === patient.name.toLowerCase();
@@ -243,8 +315,10 @@ const BookingsPage = {
       if (subnav) subnav.style.display = 'none';
       if (emptyView) {
         emptyView.style.display = 'flex';
-        document.getElementById('empty-patient-title').textContent = `No Bookings for ${patient.name}`;
-        document.getElementById('empty-patient-desc').textContent = `There are no scheduled tests for ${patient.name} (${patient.relation}) currently.`;
+        const titleEl = document.getElementById('empty-patient-title');
+        const descEl = document.getElementById('empty-patient-desc');
+        if (titleEl) titleEl.textContent = `No Bookings for ${patient.name}`;
+        if (descEl) descEl.textContent = `There are no scheduled tests for ${patient.name} (${patient.relation}) currently.`;
       }
       return;
     }
@@ -253,20 +327,22 @@ const BookingsPage = {
     if (activeView) activeView.style.display = 'block';
 
     if (patientBookings.length > 1) {
-      subnav.style.display = 'flex';
-      let selectedBId = preferredBookingId || patientBookings[0].bookingId;
+      if (subnav) {
+        subnav.style.display = 'flex';
+        let selectedBId = preferredBookingId || patientBookings[0].bookingId;
 
-      subnav.innerHTML = patientBookings.map(b => `
-        <button class="booking-subtab ${b.bookingId === selectedBId ? 'active' : ''}" 
-                onclick="BookingsPage.selectSpecificBooking('${b.bookingId}')">
-          ${b.bookingId} (${b.collectionDate || 'Recent'})
-        </button>
-      `).join('');
+        subnav.innerHTML = patientBookings.map(b => `
+          <button type="button" class="booking-subtab ${b.bookingId === selectedBId ? 'active' : ''}" 
+                  onclick="BookingsPage.selectSpecificBooking('${b.bookingId}')">
+            ${this.safeEscape(b.bookingId)} (${this.safeEscape(b.collectionDate || 'Recent')})
+          </button>
+        `).join('');
 
-      const activeBooking = patientBookings.find(b => b.bookingId === selectedBId) || patientBookings[0];
-      this.renderBookingDetails(activeBooking);
+        const activeBooking = patientBookings.find(b => b.bookingId === selectedBId) || patientBookings[0];
+        this.renderBookingDetails(activeBooking);
+      }
     } else {
-      subnav.style.display = 'none';
+      if (subnav) subnav.style.display = 'none';
       this.renderBookingDetails(patientBookings[0]);
     }
   },
@@ -328,7 +404,7 @@ const BookingsPage = {
       paymentEl.style.color = isPaid ? '#059669' : '#D97706';
     }
 
-    if (amtEl) amtEl.textContent = Utils.formatCurrency(booking.finalAmount || 0);
+    if (amtEl) amtEl.textContent = this.safeFormatCurrency(booking.finalAmount || 0);
 
     if (locBox && locText && locIcon) {
       if (isLab) {
@@ -435,9 +511,9 @@ const BookingsPage = {
         <div class="step-item ${statusClass}">
           <div class="step-node">${icon}</div>
           <div class="step-content">
-            <strong>${s.title}</strong>
-            <p>${s.desc}</p>
-            <span class="step-time-badge">${s.time}</span>
+            <strong>${this.safeEscape(s.title)}</strong>
+            <p>${this.safeEscape(s.desc)}</p>
+            <span class="step-time-badge">${this.safeEscape(s.time)}</span>
           </div>
         </div>
       `;
@@ -461,8 +537,8 @@ const BookingsPage = {
 
     let html = items.map(item => `
       <div class="test-summary-row">
-        <span>🧪 ${Utils.escapeHtml(item.name || item.TestName || 'Diagnostic Checkup')}</span>
-        <strong>${Utils.formatCurrency(item.price || item.OfferPrice || 0)}</strong>
+        <span>🧪 ${this.safeEscape(item.name || item.TestName || 'Diagnostic Checkup')}</span>
+        <strong>${this.safeFormatCurrency(item.price || item.OfferPrice || 0)}</strong>
       </div>
     `).join('');
 
@@ -484,12 +560,12 @@ const BookingsPage = {
   },
 
   /**
-   * DIRECT TRANSITION TO CART SLIDE 3 (Payment & Offers)
+   * Direct Transition to Cart Slide 3 (Payment & Offers)
    */
   goToAddTests(bookingId) {
     const booking = bookingId ? this.allBookings.find(b => b.bookingId === bookingId) : this.currentActiveBooking;
     if (!booking) {
-      Utils.showToast('Could not load booking details', 'error');
+      this.safeShowToast('Could not load booking details', 'error');
       return;
     }
 
@@ -518,4 +594,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 if (typeof window !== 'undefined') {
   window.BookingsPage = BookingsPage;
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = BookingsPage;
 }

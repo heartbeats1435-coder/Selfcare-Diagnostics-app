@@ -1,13 +1,11 @@
 /* file: assets/js/customer.js */
 /**
- * Selfcare Diagnostics - Customer Dashboard JS v8.6.0
+ * Selfcare Diagnostics - Customer Dashboard JS v8.7.0
  * Features:
- * 1. Safe ID-based Cart Toggle & Conflict Validation.
- * 2. Native Web Share API integration (navigator.share) with Clipboard fallback.
- * 3. Dedicated Share button on every Test and Package card (top-right corner).
- * 4. Stop propagation safeguards (prevents accidental card click or cart toggles).
- * 5. Deep-linking support for shared tests and packages.
- * 6. 3-Tier Neon Glow Effects with priority fallback for Top 3 packages.
+ * 1. Smart Auth Deep-Linking: Redirects non-logged-in users to Login first, then auto-restores package modal.
+ * 2. Mobile Web Share API (navigator.share) with clean clipboard fallback.
+ * 3. Dedicated Share button on every Test and Package card.
+ * 4. Safe ID-based Cart Toggle & Dynamic Conflict Validation.
  */
 
 const CustomerDashboard = {
@@ -42,6 +40,18 @@ const CustomerDashboard = {
 
   async init() {
     try {
+      // 1. புதிய பயனரை கண்டறிந்து Login-க்கு அனுப்புகிறது:
+      if (typeof Auth !== 'undefined' && !Auth.isLoggedIn()) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const hasDeepLink = urlParams.has('package') || urlParams.has('pkg') || urlParams.has('test');
+
+        if (hasDeepLink) {
+          localStorage.setItem('scd_pending_share_url', window.location.href);
+          window.location.replace('index.html?redirect=' + encodeURIComponent(window.location.href));
+          return;
+        }
+      }
+
       this.setupEventListeners();
       this.setupAutoSlideCarousel();
       this.updateCartBadgeUI();
@@ -237,10 +247,6 @@ const CustomerDashboard = {
     }, 550);
   },
 
-  /**
-   * Safe Toggle Cart: Handles both string ID and full objects.
-   * Automatically guarantees type: 'package' or 'test'.
-   */
   toggleCart(itemOrId, event) {
     if (event) {
       event.stopPropagation();
@@ -265,7 +271,6 @@ const CustomerDashboard = {
     let cart = this.getCart();
     const isAdded = this.isItemInCart(itemId, itemCode, itemName);
 
-    // Guarantee proper item metadata
     const itemWithMeta = {
       ...item,
       id: itemId,
@@ -372,18 +377,20 @@ const CustomerDashboard = {
     }
   },
 
-  // =========================================================================
-  // REUSABLE NATIVE SHARE & CLIPBOARD FALLBACK ENGINE
-  // =========================================================================
-
   getBaseAppUrl() {
     if (typeof window !== 'undefined' && window.location) {
-      const origin = window.location.origin;
-      if (origin && origin !== 'null' && !origin.startsWith('file')) {
-        return origin;
+      const host = window.location.hostname;
+      const isLocal = host === 'localhost' || host === '127.0.0.1' || host === '' || window.location.protocol === 'file:';
+      
+      if (isLocal) {
+        return 'https://heartbeats1435-coder.github.io/Selfcare-Diagnostics-app';
       }
+
+      const pathname = window.location.pathname;
+      const basePath = pathname.substring(0, pathname.lastIndexOf('/'));
+      return `${window.location.origin}${basePath}`;
     }
-    return 'https://selfcarediagnostics.in';
+    return 'https://heartbeats1435-coder.github.io/Selfcare-Diagnostics-app';
   },
 
   async copyToClipboard(text) {
@@ -412,14 +419,13 @@ const CustomerDashboard = {
   },
 
   async executeShare(shareTitle, shareBody, shareUrl) {
-    const fullShareText = `${shareBody}\n${shareUrl}`;
+    const fullShareText = `${shareBody}\n\n${shareUrl}`;
 
     if (typeof navigator !== 'undefined' && navigator.share) {
       try {
         await navigator.share({
           title: shareTitle,
-          text: shareBody,
-          url: shareUrl
+          text: fullShareText
         });
         return;
       } catch (err) {
@@ -427,12 +433,13 @@ const CustomerDashboard = {
         try {
           await navigator.share({
             title: shareTitle,
-            text: fullShareText
+            text: shareBody,
+            url: shareUrl
           });
           return;
         } catch (err2) {
           if (err2.name === 'AbortError') return;
-          console.warn('Native share failed, falling back to clipboard:', err2);
+          console.warn('Native share fallback:', err2);
         }
       }
     }
@@ -440,9 +447,6 @@ const CustomerDashboard = {
     await this.copyToClipboard(fullShareText);
   },
 
-  /**
-   * Share Package dynamically with exact package details
-   */
   sharePackage(pkgOrId, event) {
     if (event) {
       event.preventDefault();
@@ -473,7 +477,8 @@ const CustomerDashboard = {
       return;
     }
 
-    const pkgId = pkg.PackageID || pkg.PackageCode || pkg.id || 'PKG';
+    const rawId = pkg.PackageID || pkg.PackageCode || pkg.id || 'PKG';
+    const pkgId = String(rawId).trim();
     const pkgName = pkg.PackageName || pkg.name || 'Health Package';
     const price = Number(pkg.OfferPrice || pkg.price || pkg.MRP || 0);
     const priceFormatted = (typeof Utils !== 'undefined' && Utils.formatCurrency)
@@ -494,16 +499,13 @@ const CustomerDashboard = {
     }
 
     const baseUrl = this.getBaseAppUrl();
-    const shareUrl = `${baseUrl}/packages.html?package=${encodeURIComponent(pkgId)}`;
+    const shareUrl = `${baseUrl}/index.html?package=${encodeURIComponent(pkgId)}`;
     const shareTitle = `💚 SELFCARE DIAGNOSTICS - ${pkgName}`;
     const shareBody = `💚 SELFCARE DIAGNOSTICS\n\nPackage: ${pkgName}\n${testCountText}\nOffer Price: ${priceFormatted}\n\n📍 Home Sample Collection Available\n⚡ Fast Reports\n🏠 24/7 Home Collection\n\nView Package:`;
 
     this.executeShare(shareTitle, shareBody, shareUrl);
   },
 
-  /**
-   * Share Test dynamically with exact test details
-   */
   shareTest(testOrId, event) {
     if (event) {
       event.preventDefault();
@@ -535,7 +537,8 @@ const CustomerDashboard = {
       return;
     }
 
-    const testId = test.TestID || test.TestCode || test.id || 'TEST';
+    const rawId = test.TestID || test.TestCode || test.id || 'TEST';
+    const testId = String(rawId).trim();
     const testName = test.TestName || test.name || 'Diagnostic Test';
     const price = Number(test.OfferPrice || test.price || test.MRP || 0);
     const priceFormatted = (typeof Utils !== 'undefined' && Utils.formatCurrency)
@@ -543,30 +546,41 @@ const CustomerDashboard = {
       : (`₹${price}`);
 
     const baseUrl = this.getBaseAppUrl();
-    const shareUrl = `${baseUrl}/tests.html?test=${encodeURIComponent(testId)}`;
+    const shareUrl = `${baseUrl}/index.html?test=${encodeURIComponent(testId)}`;
     const shareTitle = `🧪 SELFCARE DIAGNOSTICS - ${testName}`;
     const shareBody = `🧪 SELFCARE DIAGNOSTICS\n\nTest: ${testName}\nPrice: ${priceFormatted}\n\n📍 Home Sample Collection Available\n⚡ Fast Reports\n🏠 24/7 Home Collection\n\nView Test:`;
 
     this.executeShare(shareTitle, shareBody, shareUrl);
   },
 
-  /**
-   * Safe deep link handler on page load
-   */
   handleDeepLinks() {
     try {
       if (typeof window === 'undefined' || !window.location) return;
       const urlParams = new URLSearchParams(window.location.search);
-      const pkgId = urlParams.get('package') || urlParams.get('pkg') || urlParams.get('packageId');
-      const testId = urlParams.get('test') || urlParams.get('testId');
+      const pkgParam = urlParams.get('package') || urlParams.get('pkg') || urlParams.get('packageId');
+      const testParam = urlParams.get('test') || urlParams.get('testId');
 
-      if (pkgId && this.allPackages && this.allPackages.length > 0) {
+      if (pkgParam) {
+        const cleanParam = decodeURIComponent(pkgParam).trim().toLowerCase();
         setTimeout(() => {
-          this.showPackageDetails(pkgId);
+          const matchedPkg = this.allPackages.find(p => {
+            const pid = String(p.PackageID || '').trim().toLowerCase();
+            const pcode = String(p.PackageCode || '').trim().toLowerCase();
+            return pid === cleanParam || pcode === cleanParam;
+          });
+
+          if (matchedPkg) {
+            this.showPackageDetails(matchedPkg.PackageID || matchedPkg.PackageCode);
+          }
         }, 350);
-      } else if (testId && this.allTests && this.allTests.length > 0) {
+      } else if (testParam) {
+        const cleanTest = decodeURIComponent(testParam).trim().toLowerCase();
         setTimeout(() => {
-          const test = this.allTests.find(t => String(t.TestID) === String(testId) || String(t.TestCode) === String(testId));
+          const test = this.allTests.find(t => {
+            const tid = String(t.TestID || '').trim().toLowerCase();
+            const tcode = String(t.TestCode || '').trim().toLowerCase();
+            return tid === cleanTest || tcode === cleanTest;
+          });
           if (test && typeof Utils !== 'undefined') {
             Utils.showToast(`Selected Test: ${test.TestName} (${Utils.formatCurrency(test.OfferPrice)})`, 'info');
           }
@@ -577,9 +591,6 @@ const CustomerDashboard = {
     }
   },
 
-  /**
-   * Renders the popular packages with click-safe ID binding & top-right share icon.
-   */
   renderPopularPackages() {
     const container = document.getElementById('popular-packages-container');
     if (!container) return;
@@ -663,9 +674,6 @@ const CustomerDashboard = {
     }).join('');
   },
 
-  /**
-   * Renders popular tests if container is present
-   */
   renderPopularTests() {
     const container = document.getElementById('popular-tests-container');
     if (!container) return;
@@ -713,17 +721,18 @@ const CustomerDashboard = {
   },
 
   showPackageDetails(pkgId) {
-    let pkg = this.allPackages.find(p => p.PackageID === pkgId || p.PackageCode === pkgId);
+    let pkg = this.allPackages.find(p => String(p.PackageID).trim().toLowerCase() === String(pkgId).trim().toLowerCase() || String(p.PackageCode).trim().toLowerCase() === String(pkgId).trim().toLowerCase());
     if (!pkg) return;
 
+    const actualId = pkg.PackageID || pkg.PackageCode;
     const formattedParams = this.formatParameters(pkg);
     const paramCount = this.getPackageParameterCount(pkg);
     const fastingInfo = this.getFastingDetails(pkg);
-    const alreadyAdded = this.isItemInCart(pkg.PackageID || pkg.PackageCode, pkg.PackageCode, pkg.PackageName);
+    const alreadyAdded = this.isItemInCart(actualId, pkg.PackageCode, pkg.PackageName);
 
     const actionBtn = alreadyAdded
-      ? `<button class="modal-action-btn remove-btn" onclick="CustomerDashboard.toggleCart('${Utils.escapeHtml(pkgId)}', event); CustomerDashboard.showPackageDetails('${Utils.escapeHtml(pkgId)}');">🗑️ Remove from Cart</button>`
-      : `<button class="modal-action-btn add-btn" onclick="CustomerDashboard.toggleCart('${Utils.escapeHtml(pkgId)}', event); CustomerDashboard.showPackageDetails('${Utils.escapeHtml(pkgId)}');">🛒 Add to Cart</button>`;
+      ? `<button class="modal-action-btn remove-btn" onclick="CustomerDashboard.toggleCart('${Utils.escapeHtml(actualId)}', event); CustomerDashboard.showPackageDetails('${Utils.escapeHtml(actualId)}');">🗑️ Remove from Cart</button>`
+      : `<button class="modal-action-btn add-btn" onclick="CustomerDashboard.toggleCart('${Utils.escapeHtml(actualId)}', event); CustomerDashboard.showPackageDetails('${Utils.escapeHtml(actualId)}');">🛒 Add to Cart</button>`;
 
     let modal = document.getElementById('package-detail-modal');
     if (!modal) {
@@ -741,7 +750,7 @@ const CustomerDashboard = {
             <h3>${Utils.escapeHtml(pkg.PackageName)}</h3>
           </div>
           <div style="display: flex; align-items: center; gap: 8px;">
-            <button type="button" class="card-share-btn modal-share-btn" aria-label="Share Package" title="Share Package" onclick="CustomerDashboard.sharePackage('${Utils.escapeHtml(pkgId)}', event)">
+            <button type="button" class="card-share-btn modal-share-btn" aria-label="Share Package" title="Share Package" onclick="CustomerDashboard.sharePackage('${Utils.escapeHtml(actualId)}', event)">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <circle cx="18" cy="5" r="3"></circle>
                 <circle cx="6" cy="12" r="3"></circle>
@@ -1337,17 +1346,41 @@ const CustomerDashboard = {
     }
   },
 
-  setupAutoSlideCarousel() {
+    setupAutoSlideCarousel() {
     const track = document.getElementById('singleSliderTrack');
-    if (track) {
-      let currentSlide = 0;
-      const totalSlides = track.children.length;
-      setInterval(() => {
+    if (!track) return;
+
+    // ஏற்கெனவே ஓடிக்கொண்டிருக்கும் பழைய டைமரை கிளியர் செய்கிறது (Interval Stacking தடுக்கும்)
+    if (this.sliderIntervalId) {
+      clearInterval(this.sliderIntervalId);
+      this.sliderIntervalId = null;
+    }
+
+    let currentSlide = 0;
+    const totalSlides = track.children.length;
+    if (totalSlides <= 1) return;
+
+    // ஸ்லைடர் தொடங்கும் பங்க்ஷன் (5 Seconds - Smooth & Slow Movement)
+    const startSliding = () => {
+      if (this.sliderIntervalId) clearInterval(this.sliderIntervalId);
+      this.sliderIntervalId = setInterval(() => {
         currentSlide = (currentSlide + 1) % totalSlides;
         track.style.transform = `translateX(-${currentSlide * 100}%)`;
-      }, 3200);
+      }, 5000); // 5 வினாடிகள் ரிலாக்ஸாகப் படிக்க ஏற்ற டைமிங்
+    };
+
+    startSliding();
+
+    // யூசர் விளம்பரத்தை விரலால் தொடும்போதோ அல்லது மவுஸ் வைக்கும்போதோ ஸ்லைடிங்கை தற்காலிகமாக நிறுத்தும்
+    const sliderBox = track.closest('.single-slider-box');
+    if (sliderBox) {
+      sliderBox.addEventListener('mouseenter', () => clearInterval(this.sliderIntervalId));
+      sliderBox.addEventListener('mouseleave', () => startSliding());
+      sliderBox.addEventListener('touchstart', () => clearInterval(this.sliderIntervalId), { passive: true });
+      sliderBox.addEventListener('touchend', () => startSliding(), { passive: true });
     }
   },
+
 
   setupEventListeners() {
     window.addEventListener('pageshow', () => {

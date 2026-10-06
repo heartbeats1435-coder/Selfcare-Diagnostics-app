@@ -1,9 +1,9 @@
 /* file: assets/js/offline-db.js */
 /**
- * Selfcare Diagnostics - Offline Database (IndexedDB) v4.0.0
+ * Selfcare Diagnostics - Offline Database (IndexedDB) v5.0.0
  * Hardened against mobile backgrounding deadlocks, multiple-tab lockouts,
  * with 800ms auto-timeout safeguard, LocalStorage instant fallback,
- * and Multi-tenant Cart Vault synchronization.
+ * and Multi-tenant Multi-Patient Cart Vault synchronization.
  */
 
 const OfflineDB = {
@@ -42,7 +42,7 @@ const OfflineDB = {
 
         request.onerror = (event) => {
           clearTimeout(timer);
-          console.error('IndexedDB open error:', event.target.error);
+          console.error('IndexedDB open error:', event.target ? event.target.error : event);
           resolve(null);
         };
 
@@ -139,7 +139,7 @@ const OfflineDB = {
   },
 
   async putAll(storeName, items, clearFirst = true) {
-    // Also save in localStorage backup immediately
+    // Instant localStorage backup reflection
     if (Array.isArray(items) && items.length > 0) {
       try {
         localStorage.setItem(`cache_${storeName}`, JSON.stringify(items));
@@ -148,7 +148,7 @@ const OfflineDB = {
 
     return new Promise(async (resolve) => {
       const timeout = setTimeout(() => {
-        resolve(true); // Don't hang UI even if transaction is slow
+        resolve(true); // Don't hang UI even if transaction takes time
       }, 1500);
 
       try {
@@ -176,7 +176,13 @@ const OfflineDB = {
         }
 
         if (Array.isArray(items)) {
-          items.forEach(item => store.put(item));
+          items.forEach(item => {
+            try {
+              store.put(item);
+            } catch (putErr) {
+              console.warn(`Error writing item to ${storeName}:`, putErr);
+            }
+          });
         }
       } catch (err) {
         clearTimeout(timeout);
@@ -188,7 +194,14 @@ const OfflineDB = {
   async getById(storeName, key) {
     try {
       const all = await this.getAll(storeName);
-      return all.find(item => (item.TestID === key || item.PackageID === key || item.id === key)) || null;
+      const cleanKey = String(key || '').trim().toLowerCase();
+      return all.find(item => {
+        const tId = String(item.TestID || '').trim().toLowerCase();
+        const pId = String(item.PackageID || '').trim().toLowerCase();
+        const iId = String(item.id || '').trim().toLowerCase();
+        const tCode = String(item.TestCode || item.PackageCode || item.code || '').trim().toLowerCase();
+        return tId === cleanKey || pId === cleanKey || iId === cleanKey || tCode === cleanKey;
+      }) || null;
     } catch (e) {
       return null;
     }
@@ -216,9 +229,12 @@ const OfflineDB = {
       localStorage.setItem(`meta_${key}`, JSON.stringify(value));
       const db = await this.init();
       if (!db) return true;
-      const transaction = db.transaction('metadata', 'readwrite');
-      transaction.objectStore('metadata').put(value, key);
-      return true;
+      return new Promise((resolve) => {
+        const transaction = db.transaction('metadata', 'readwrite');
+        transaction.objectStore('metadata').put(value, key);
+        transaction.oncomplete = () => resolve(true);
+        transaction.onerror = () => resolve(true);
+      });
     } catch (e) {
       return true;
     }
@@ -241,11 +257,13 @@ const OfflineDB = {
   },
 
   /**
-   * Universal Vault-Aware Cart Saver
+   * Universal Vault-Aware Cart Saver with Multi-Patient Composite Key Protection
    */
   async saveCart(cartItems) {
     try {
-      const cartStr = JSON.stringify(cartItems || []);
+      const itemsList = Array.isArray(cartItems) ? cartItems : [];
+      const cartStr = JSON.stringify(itemsList);
+      
       localStorage.setItem('cart', cartStr);
       localStorage.setItem('selfcare_cart', cartStr);
 
@@ -257,20 +275,41 @@ const OfflineDB = {
 
       const db = await this.init();
       if (!db) return true;
-      const transaction = db.transaction('cart', 'readwrite');
-      const store = transaction.objectStore('cart');
-      store.clear();
-      if (Array.isArray(cartItems)) {
-        cartItems.forEach(item => store.put(item));
-      }
-      return true;
+
+      return new Promise((resolve) => {
+        const transaction = db.transaction('cart', 'readwrite');
+        const store = transaction.objectStore('cart');
+        store.clear();
+
+        itemsList.forEach((item, idx) => {
+          // Composite ID Safeguard: Prevents overwrite when multiple patients order the exact same test
+          const rawItemId = item.id || item.TestID || item.PackageID || item.TestCode || item.PackageCode || idx;
+          const patientScope = item.patientId || 'SELF';
+          const compositeId = item.cartItemId || `${patientScope}_${rawItemId}_${idx}`;
+
+          const sanitizedItem = {
+            ...item,
+            id: compositeId,
+            cartItemId: compositeId
+          };
+
+          try {
+            store.put(sanitizedItem);
+          } catch (putErr) {
+            console.warn('Error saving cart item to IndexedDB:', putErr);
+          }
+        });
+
+        transaction.oncomplete = () => resolve(true);
+        transaction.onerror = () => resolve(true);
+      });
     } catch (e) {
       return true;
     }
   },
 
   /**
-   * Universal Vault-Aware Cart Reader
+   * Universal Vault-Aware Cart Reader with LocalStorage + IndexedDB True Fallback
    */
   async getCart() {
     try {
@@ -285,7 +324,43 @@ const OfflineDB = {
         raw = localStorage.getItem('selfcare_cart') || localStorage.getItem('cart');
       }
 
-      return raw ? JSON.parse(raw) : [];
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+
+      // True IndexedDB Fallback: Reads directly from store if localStorage is empty
+      const db = await this.init();
+      if (!db) return [];
+
+      return new Promise((resolve) => {
+        try {
+          const transaction = db.transaction('cart', 'readonly');
+          const store = transaction.objectStore('cart');
+          const request = store.getAll();
+
+          request.onsuccess = () => {
+            const dbCart = request.result || [];
+            if (Array.isArray(dbCart) && dbCart.length > 0) {
+              // Restore back to active user's LocalStorage vault
+              const cartStr = JSON.stringify(dbCart);
+              localStorage.setItem('selfcare_cart', cartStr);
+              if (activeUser) {
+                localStorage.setItem(`selfcare_cart_${activeUser}`, cartStr);
+              }
+              resolve(dbCart);
+            } else {
+              resolve([]);
+            }
+          };
+
+          request.onerror = () => resolve([]);
+        } catch (readErr) {
+          resolve([]);
+        }
+      });
     } catch (e) {
       return [];
     }

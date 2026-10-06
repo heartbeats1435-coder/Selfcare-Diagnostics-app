@@ -1,24 +1,25 @@
 /* file: assets/js/utils.js */
 /**
- * Selfcare Diagnostics - Utilities & Dynamic 2-Tier Sheet Inspection Engine v11.0.0
+ * Selfcare Diagnostics - Utilities & Dynamic 2-Tier Sheet Inspection Engine v12.0.0
  * Features:
- * 1. Rupee currency formatting, XSS sanitization, debouncing, online check, and toast notifications.
- * 2. Strict Bi-directional Dynamic Conflict Validation Engine:
+ * 1. Indian Rupee currency formatting, XSS sanitization, debouncing, online check, and toast notifications.
+ * 2. Multi-Patient Aware Bi-directional Dynamic Conflict Validation Engine:
  *    - Rule 1: Package vs Individual Test (Blocks LFT / GGT / Bilirubin if package has LFT, allows Vitamin D).
- *    - Rule 2: Individual Test vs Package.
- *    - Rule 3: Parent Panel vs Sub-parameter (e.g. CBC vs Hb, LFT vs GGT).
- *    - Rule 4: PACKAGE vs PACKAGE Deep Overlap (Blocks adding 1999 package when 1299 package is in cart).
+ *    - Rule 2: Individual Test vs Package (Blocks adding package if individual tests overlap).
+ *    - Rule 3: Parent Panel vs Sub-parameter (e.g., CBC vs Hb, LFT vs SGPT/GGT, KFT vs Creatinine).
+ *    - Rule 4: Package vs Package Deep Overlap (Blocks adding overlapping health packages).
+ *    - Multi-Patient Isolation Guard: Evaluates conflicts ONLY within the same patient context.
  */
 
 const Utils = {
   /**
    * Format number to Indian Rupee currency string
-   * @param {number} amount 
+   * @param {number|string} amount 
    * @returns {string} Formatted currency string
    */
   formatCurrency(amount) {
-    if (isNaN(amount) || amount === null) return '₹0';
-    return '₹' + Number(amount).toLocaleString('en-IN');
+    if (amount === undefined || amount === null || isNaN(Number(amount))) return '₹0';
+    return '₹' + Math.round(Number(amount)).toLocaleString('en-IN');
   },
 
   /**
@@ -40,7 +41,7 @@ const Utils = {
   },
 
   /**
-   * Escape HTML to prevent XSS
+   * Escape HTML to prevent XSS attacks
    * @param {string} str 
    * @returns {string} Sanitized string
    */
@@ -55,7 +56,7 @@ const Utils = {
   },
 
   /**
-   * Display a floating toast notification
+   * Display a floating 3D toast notification
    * @param {string} message 
    * @param {string} type - 'success', 'error', 'info'
    */
@@ -64,18 +65,18 @@ const Utils = {
     if (!container) {
       container = document.createElement('div');
       container.id = 'toast-container';
-      container.style.cssText = 'position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); z-index: 9999; display: flex; flex-direction: column; gap: 8px; pointer-events: none; width: 90%; max-width: 400px; align-items: center;';
+      container.style.cssText = 'position: fixed; bottom: 85px; left: 50%; transform: translateX(-50%); z-index: 10000; display: flex; flex-direction: column; gap: 8px; pointer-events: none; width: 90%; max-width: 420px; align-items: center;';
       document.body.appendChild(container);
     }
 
     const toast = document.createElement('div');
     const bgColors = {
-      success: '#078866',
-      error: '#E4005A',
-      info: '#045D49'
+      success: 'linear-gradient(135deg, #078866, #045D49)',
+      error: 'linear-gradient(135deg, #E4005A, #BE0048)',
+      info: 'linear-gradient(135deg, #045D49, #033F33)'
     };
 
-    toast.style.cssText = `background: ${bgColors[type] || bgColors.success}; color: #FFFFFF; padding: 12px 20px; border-radius: 12px; font-size: 14px; font-weight: 500; box-shadow: 0 8px 24px rgba(0,0,0,0.15); backdrop-filter: blur(10px); opacity: 0; transition: opacity 0.3s ease, transform 0.3s ease; transform: translateY(10px); pointer-events: auto; text-align: center; width: 100%;`;
+    toast.style.cssText = `background: ${bgColors[type] || bgColors.success}; color: #FFFFFF; padding: 12px 18px; border-radius: 12px; font-size: 13px; font-weight: 700; box-shadow: 0 10px 28px rgba(0,0,0,0.22); border: 1px solid rgba(255,255,255,0.2); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); opacity: 0; transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s ease; transform: translateY(12px); pointer-events: auto; text-align: center; width: 100%; box-sizing: border-box;`;
     toast.textContent = message;
     container.appendChild(toast);
 
@@ -87,7 +88,9 @@ const Utils = {
     setTimeout(() => {
       toast.style.opacity = '0';
       toast.style.transform = 'translateY(10px)';
-      setTimeout(() => toast.remove(), 300);
+      setTimeout(() => {
+        if (toast.parentNode) toast.parentNode.removeChild(toast);
+      }, 300);
     }, 3200);
   },
 
@@ -96,7 +99,7 @@ const Utils = {
    * @returns {boolean}
    */
   isOnline() {
-    return navigator.onLine;
+    return typeof navigator !== 'undefined' ? navigator.onLine : true;
   }
 };
 
@@ -106,11 +109,11 @@ const Utils = {
  * =========================================================================
  */
 const ConflictValidator = {
-  // Common Organ Panel Clinical Alias Groups
+  // Clinical Organ Panel Aliases for Instant Detection
   panelAliases: {
     'LFT': ['lft', 'liver function test', 'liver function', 'liver panel', 'hepatic function', 'liver profile', 't0013', 'scdt0013'],
     'CBC': ['cbc', 'complete blood count', 'hemogram', 'complete hemogram', 'haemogram', 't0001', 'scdt0001'],
-    'KFT': ['kft', 'rft', 'kidney function test', 'renal function test', 'kidney function', 'renal function', 'kidney panel', 'renal panel', 't0016', 't0014', 'scdt0016', 'scdt0014'],
+    'KFT': ['kft', 'rft', 'kidney function test', 'renal function test', 'kidney function', 'renal function', 'kidney panel', 'renal panel', 't0014', 'scdt0014', 't0016', 'scdt0016'],
     'LIPID': ['lipid profile', 'lipid panel', 'cholesterol panel', 'lipid screen', 'lipids', 't0012', 'scdt0012'],
     'THYROID': ['thyroid profile', 'thyroid panel', 'total thyroid', 't3 t4 tsh', 'thyroid function', 't0040', 'scdt0040'],
     'DIABETES': ['diabetes profile', 'diabetic screen', 'diabetes panel', 'blood sugar profile']
@@ -119,7 +122,7 @@ const ConflictValidator = {
   isPackage(item) {
     if (!item) return false;
     const type = String(item.type || '').toLowerCase();
-    const code = String(item.PackageID || item.PackageCode || item.TestCode || item.code || '').toUpperCase();
+    const code = String(item.PackageID || item.PackageCode || item.TestCode || item.code || item.id || '').toUpperCase();
     const name = String(item.TestName || item.PackageName || item.name || '').toUpperCase();
     return Boolean(
       item.isPackage === true ||
@@ -135,11 +138,15 @@ const ConflictValidator = {
     );
   },
 
+  /**
+   * Clinical exemption for Reticulocyte count (Can be ordered alongside CBC)
+   * Note: T0015 is Serum Creatinine in Selfcare catalog and MUST NOT be exempted here!
+   */
   isReticulocyte(item) {
     if (!item) return false;
-    const code = String(item.TestCode || item.code || '').toUpperCase();
+    const code = String(item.TestCode || item.code || item.TestID || item.id || '').toUpperCase();
     const name = String(item.TestName || item.name || '').toUpperCase();
-    return code === 'T0015' || name.includes('RETICULOCYTE');
+    return name.includes('RETICULOCYTE') || code.includes('RETIC');
   },
 
   cleanStr(str) {
@@ -229,51 +236,60 @@ const ConflictValidator = {
   },
 
   /**
-   * Reads BloodTests Sheet row for a panel and returns all its dynamic sub-parameters
+   * Reads Sheet test record for a panel and returns all its dynamic clinical sub-parameters
    */
   getDeepParametersForSheetTest(constituentName, allSheetTests) {
-    if (!constituentName || !Array.isArray(allSheetTests) || allSheetTests.length === 0) {
+    if (!constituentName) {
       return { parentTest: null, subParameters: [] };
     }
 
     const cClean = this.cleanStr(constituentName);
     const cUpper = constituentName.toUpperCase().trim();
 
-    const matchedTest = allSheetTests.find(t => {
-      const tName = String(t.TestName || '').trim();
-      const tCode = String(t.TestCode || t.TestID || '').toUpperCase().trim();
-      const tClean = this.cleanStr(tName);
+    let matchedTest = null;
+    if (Array.isArray(allSheetTests) && allSheetTests.length > 0) {
+      matchedTest = allSheetTests.find(t => {
+        const tName = String(t.TestName || '').trim();
+        const tCode = String(t.TestCode || t.TestID || '').toUpperCase().trim();
+        const tClean = this.cleanStr(tName);
 
-      if (tCode && tCode === cUpper) return true;
-      if (tClean === cClean) return true;
+        if (tCode && tCode === cUpper) return true;
+        if (tClean === cClean) return true;
 
-      for (const key of Object.keys(this.panelAliases)) {
-        const aliases = this.panelAliases[key];
-        const cMatches = aliases.some(a => cClean === a || cClean.includes(a) || cUpper === a.toUpperCase());
-        const tMatches = aliases.some(a => tClean === a || tClean.includes(a) || tCode === a.toUpperCase());
-        if (cMatches && tMatches) return true;
-      }
+        for (const key of Object.keys(this.panelAliases)) {
+          const aliases = this.panelAliases[key];
+          const cMatches = aliases.some(a => cClean === a || cClean.includes(a) || cUpper === a.toUpperCase());
+          const tMatches = aliases.some(a => tClean === a || tClean.includes(a) || tCode === a.toUpperCase());
+          if (cMatches && tMatches) return true;
+        }
 
-      const reg = new RegExp(`(^|[^a-z0-9])${cClean}([^a-z0-9]|$)`, 'i');
-      return reg.test(tClean);
-    });
-
-    if (!matchedTest) {
-      return { parentTest: null, subParameters: [] };
+        const reg = new RegExp(`(^|[^a-z0-9])${cClean}([^a-z0-9]|$)`, 'i');
+        return reg.test(tClean);
+      });
     }
 
-    const rawParams = matchedTest.Parameters || matchedTest.Description || '';
     let subParams = [];
 
-    if (Array.isArray(rawParams)) {
-      subParams = rawParams.map(p => String(p).trim());
-    } else if (typeof rawParams === 'string') {
-      subParams = rawParams.split(/[;,|\n•]|<br\s*[\/]?>/i).map(p => p.trim());
+    if (matchedTest) {
+      const rawParams = matchedTest.Parameters || matchedTest.Description || '';
+      if (Array.isArray(rawParams)) {
+        subParams = rawParams.map(p => String(p).trim());
+      } else if (typeof rawParams === 'string') {
+        subParams = rawParams.split(/[;,|\n•]|<br\s*[\/]?>/i).map(p => p.trim());
+      }
     }
 
-    const matchedCode = String(matchedTest.TestCode || matchedTest.TestID || '').toUpperCase();
-    if (matchedCode === 'T0001' || this.cleanStr(matchedTest.TestName).includes('cbc')) {
+    // Standard Clinical Fallback Panel Expansions
+    if (cClean.includes('cbc') || cClean.includes('hemogram') || (matchedTest && String(matchedTest.TestCode).toUpperCase() === 'T0001')) {
       subParams.push('Hemoglobin', 'Hb', 'Total WBC', 'TLC', 'WBC', 'RBC', 'Platelet', 'PCV', 'MCV', 'MCH', 'MCHC', 'RDW', 'Neutrophils', 'Lymphocytes', 'Monocytes', 'Eosinophils', 'Basophils');
+    } else if (cClean.includes('lft') || cClean.includes('liver') || (matchedTest && String(matchedTest.TestCode).toUpperCase() === 'T0013')) {
+      subParams.push('Bilirubin', 'Total Bilirubin', 'Direct Bilirubin', 'Indirect Bilirubin', 'SGOT', 'AST', 'SGPT', 'ALT', 'Alkaline Phosphatase', 'ALP', 'Total Protein', 'Albumin', 'Globulin', 'A/G Ratio', 'GGT', 'Gamma GT');
+    } else if (cClean.includes('kft') || cClean.includes('rft') || cClean.includes('kidney') || cClean.includes('renal') || (matchedTest && (String(matchedTest.TestCode).toUpperCase() === 'T0014' || String(matchedTest.TestCode).toUpperCase() === 'T0016'))) {
+      subParams.push('Blood Urea', 'Urea', 'Serum Creatinine', 'Creatinine', 'Uric Acid', 'BUN', 'Blood Urea Nitrogen', 'eGFR', 'Calcium', 'Phosphorus');
+    } else if (cClean.includes('lipid') || (matchedTest && String(matchedTest.TestCode).toUpperCase() === 'T0012')) {
+      subParams.push('Total Cholesterol', 'Cholesterol', 'Triglycerides', 'HDL', 'HDL Cholesterol', 'LDL', 'LDL Cholesterol', 'VLDL', 'Cholesterol/HDL Ratio');
+    } else if (cClean.includes('thyroid') || (matchedTest && String(matchedTest.TestCode).toUpperCase() === 'T0040')) {
+      subParams.push('T3', 'Total T3', 'Triiodothyronine', 'T4', 'Total T4', 'Thyroxine', 'TSH', 'Thyroid Stimulating Hormone');
     }
 
     return {
@@ -284,6 +300,7 @@ const ConflictValidator = {
 
   /**
    * Bi-directional Dynamic Conflict Engine
+   * Validates tests and packages with Multi-Patient Isolation support.
    */
   checkConflict(newItem, cart) {
     if (!newItem || !Array.isArray(cart) || cart.length === 0) {
@@ -298,21 +315,28 @@ const ConflictValidator = {
     const newIsPkg = this.isPackage(newItem);
     const newName = newItem.TestName || newItem.PackageName || newItem.name || 'Selected Test';
     const newNameClean = this.cleanStr(newName);
-    const newCode = (newItem.TestCode || newItem.PackageCode || newItem.PackageID || newItem.code || '').toUpperCase().replace(/[\s\-_]/g, '');
+    const newCode = (newItem.TestCode || newItem.PackageCode || newItem.PackageID || newItem.code || newItem.id || '').toUpperCase().replace(/[\s\-_]/g, '');
+    const targetPatientId = newItem.patientId || null;
 
     for (const cartItem of cart) {
       if (this.isReticulocyte(cartItem)) continue;
 
+      // MULTI-PATIENT ISOLATION GUARD:
+      // If patientIds are explicitly defined on both items and they belong to different patients, SKIP conflict!
+      if (targetPatientId && cartItem.patientId && cartItem.patientId !== targetPatientId) {
+        continue;
+      }
+
       const cartIsPkg = this.isPackage(cartItem);
       const cartName = cartItem.TestName || cartItem.PackageName || cartItem.name || 'Package';
       const cartNameClean = this.cleanStr(cartName);
+      const cartCode = (cartItem.PackageCode || cartItem.PackageID || cartItem.TestCode || cartItem.code || cartItem.id || '').toUpperCase().replace(/[\s\-_]/g, '');
 
       // =========================================================================
       // RULE 4: PACKAGE vs PACKAGE CONFLICT (e.g. 1299 Package vs 1999 Package)
       // =========================================================================
       if (cartIsPkg && newIsPkg) {
-        // 1. Direct Same Package Check
-        const cartCode = (cartItem.PackageCode || cartItem.PackageID || cartItem.TestCode || cartItem.code || '').toUpperCase().replace(/[\s\-_]/g, '');
+        // 1. Exact Duplicate Package Check
         if (newCode && cartCode && newCode === cartCode) {
           return {
             hasConflict: true,
@@ -320,7 +344,7 @@ const ConflictValidator = {
           };
         }
 
-        // 2. Overlapping Constituents / Panels Check (CBC, LFT, KFT, Lipid Profile, etc.)
+        // 2. Overlapping Constituents / Panels Check
         const cartConstituents = this.extractPackageConstituents(cartItem);
         const newConstituents = this.extractPackageConstituents(newItem);
         const commonOverlaps = [];
@@ -342,11 +366,10 @@ const ConflictValidator = {
         if (commonOverlaps.length > 0) {
           return {
             hasConflict: true,
-            reason: `⚠️ Package Conflict: "${newName}" contains common panels/tests (${commonOverlaps.slice(0, 3).join(', ')}) already included in "${cartName}". You cannot add two health packages simultaneously.`
+            reason: `⚠️ Package Conflict: "${newName}" contains common panels (${commonOverlaps.slice(0, 3).join(', ')}) already included in "${cartName}". You cannot add two health packages simultaneously for the same person.`
           };
         }
 
-        // 3. Fallback: Both are comprehensive checkups (Prevent duplicate phlebotomy home visits)
         return {
           hasConflict: true,
           reason: `⚠️ Package Conflict: Your cart already has "${cartName}". Please remove it first to select "${newName}".`
@@ -354,7 +377,7 @@ const ConflictValidator = {
       }
 
       // =========================================================================
-      // RULE 1: Cart-la Package irukku -> Individual Test add panna try pannumbodhu
+      // RULE 1: Cart has Package -> User tries to add Individual Test
       // =========================================================================
       if (cartIsPkg && !newIsPkg) {
         const pkgConstituents = this.extractPackageConstituents(cartItem);
@@ -363,55 +386,50 @@ const ConflictValidator = {
           const itemClean = this.cleanStr(constituent);
           const itemCode = constituent.toUpperCase().replace(/[\s\-_]/g, '');
 
-          // LEVEL 1: Whole Panel Block (Package has LFT -> User tries to add "LFT")
+          // Direct Panel Equality Block
           if (newCode && (newCode === itemCode || newCode === constituent.toUpperCase())) {
             return {
               hasConflict: true,
-              reason: `⚠️ "${newName}" already included in "${cartName}" package in your cart.`
+              reason: `⚠️ "${newName}" is already included in the "${cartName}" package in your cart.`
             };
           }
 
           if (this.isSameOrganPanel(constituent, itemCode, newName, newCode)) {
             return {
               hasConflict: true,
-              reason: `⚠️ "${newName}" already included in "${cartName}" package in your cart.`
+              reason: `⚠️ "${newName}" is already included in the "${cartName}" package in your cart.`
             };
           }
 
-          // LEVEL 2: Dynamic Sheet Sub-parameters Block (Package has LFT -> Blocks GGT, Bilirubin, SGOT, SGPT, ALP)
+          // Dynamic Sub-parameters Block (e.g. Package has KFT -> Blocks Serum Creatinine)
           const { parentTest, subParameters } = this.getDeepParametersForSheetTest(constituent, allSheetTests);
+          const parentName = parentTest ? (parentTest.TestName || constituent) : constituent;
 
-          if (parentTest) {
-            const parentName = parentTest.TestName || constituent;
+          if (parentTest && this.isSameOrganPanel(parentName, parentTest.TestCode, newName, newCode)) {
+            return {
+              hasConflict: true,
+              reason: `⚠️ "${newName}" is already included in the "${cartName}" package in your cart.`
+            };
+          }
 
-            if (this.isSameOrganPanel(parentName, parentTest.TestCode, newName, newCode)) {
+          for (const param of subParameters) {
+            const paramClean = this.cleanStr(param);
+            const regexMatch = new RegExp(`(^|[^a-z0-9])${paramClean}([^a-z0-9]|$)`, 'i').test(newNameClean);
+            const reverseRegexMatch = new RegExp(`(^|[^a-z0-9])${newNameClean}([^a-z0-9]|$)`, 'i').test(paramClean);
+
+            if (paramClean === newNameClean || regexMatch || reverseRegexMatch) {
               return {
                 hasConflict: true,
-                reason: `⚠️ "${newName}" already included in "${cartName}" package in your cart.`
+                reason: `⚠️ "${newName}" is already covered under "${parentName}" in the "${cartName}" package.`
               };
-            }
-
-            for (const param of subParameters) {
-              const paramClean = this.cleanStr(param);
-              const regexMatch = new RegExp(`(^|[^a-z0-9])${paramClean}([^a-z0-9]|$)`, 'i').test(newNameClean);
-              const reverseRegexMatch = new RegExp(`(^|[^a-z0-9])${newNameClean}([^a-z0-9]|$)`, 'i').test(paramClean);
-
-              if (paramClean === newNameClean || regexMatch || reverseRegexMatch) {
-                return {
-                  hasConflict: true,
-                  reason: `⚠️ "${newName}" is already covered under "${parentName}" in "${cartName}" package.`
-                };
-              }
             }
           }
         }
-
-        // LEVEL 3: Vitamin D package-lum illa, LFT parameters-lum illa என்பதால் ALLOW!
         continue;
       }
 
       // =========================================================================
-      // RULE 2: Cart-la Test irukku -> Package add panna try pannumbodhu
+      // RULE 2: Cart has Individual Test -> User tries to add Package
       // =========================================================================
       if (!cartIsPkg && newIsPkg) {
         const pkgConstituents = this.extractPackageConstituents(newItem);
@@ -419,42 +437,47 @@ const ConflictValidator = {
         for (const constituent of pkgConstituents) {
           const itemClean = this.cleanStr(constituent);
           const itemCode = constituent.toUpperCase().replace(/[\s\-_]/g, '');
-          const cartCode = (cartItem.TestCode || cartItem.code || '').toUpperCase().replace(/[\s\-_]/g, '');
 
           if (this.isSameOrganPanel(constituent, itemCode, cartName, cartCode)) {
             return {
               hasConflict: true,
-              reason: `⚠️ Your cart already has "${cartName}". Please remove it first to add "${newName}".`
+              reason: `⚠️ Your cart already has "${cartName}". Please remove it first to add the complete "${newName}" package.`
             };
           }
 
           const { parentTest, subParameters } = this.getDeepParametersForSheetTest(constituent, allSheetTests);
+          const parentName = parentTest ? (parentTest.TestName || constituent) : constituent;
 
-          if (parentTest && subParameters.length > 0) {
-            const parentName = parentTest.TestName || constituent;
+          for (const param of subParameters) {
+            const paramClean = this.cleanStr(param);
+            const regexMatch = new RegExp(`(^|[^a-z0-9])${paramClean}([^a-z0-9]|$)`, 'i').test(cartNameClean);
+            const reverseRegexMatch = new RegExp(`(^|[^a-z0-9])${cartNameClean}([^a-z0-9]|$)`, 'i').test(paramClean);
 
-            for (const param of subParameters) {
-              const paramClean = this.cleanStr(param);
-              const regexMatch = new RegExp(`(^|[^a-z0-9])${paramClean}([^a-z0-9]|$)`, 'i').test(cartNameClean);
-              const reverseRegexMatch = new RegExp(`(^|[^a-z0-9])${cartNameClean}([^a-z0-9]|$)`, 'i').test(paramClean);
-
-              if (paramClean === cartNameClean || regexMatch || reverseRegexMatch) {
-                return {
-                  hasConflict: true,
-                  reason: `⚠️ Your cart has "${cartName}" which is already included under "${parentName}" in "${newName}". Please remove "${cartName}" first.`
-                };
-              }
+            if (paramClean === cartNameClean || regexMatch || reverseRegexMatch) {
+              return {
+                hasConflict: true,
+                reason: `⚠️ Your cart has "${cartName}" which is already covered under "${parentName}" in "${newName}". Please remove "${cartName}" first.`
+              };
             }
           }
         }
+        continue;
       }
 
       // =========================================================================
-      // RULE 3: Panel vs Sub-parameter (e.g. Cart-la LFT irundhu GGT add pannaal)
+      // RULE 3: Panel vs Sub-parameter (e.g. Cart has KFT -> User adds Creatinine)
       // =========================================================================
       if (!cartIsPkg && !newIsPkg) {
+        // Direct duplicate test check
+        if (newCode && cartCode && newCode === cartCode) {
+          return {
+            hasConflict: true,
+            reason: `⚠️ "${newName}" is already in your cart.`
+          };
+        }
+
         const cartDeep = this.getDeepParametersForSheetTest(cartName, allSheetTests);
-        if (cartDeep.parentTest && cartDeep.subParameters.length > 0) {
+        if (cartDeep.subParameters.length > 0) {
           for (const param of cartDeep.subParameters) {
             const paramClean = this.cleanStr(param);
             if (paramClean === newNameClean || 
@@ -469,7 +492,7 @@ const ConflictValidator = {
         }
 
         const newDeep = this.getDeepParametersForSheetTest(newName, allSheetTests);
-        if (newDeep.parentTest && newDeep.subParameters.length > 0) {
+        if (newDeep.subParameters.length > 0) {
           for (const param of newDeep.subParameters) {
             const paramClean = this.cleanStr(param);
             if (paramClean === cartNameClean || 
@@ -477,7 +500,7 @@ const ConflictValidator = {
                 new RegExp(`(^|[^a-z0-9])${cartNameClean}([^a-z0-9]|$)`, 'i').test(paramClean)) {
               return {
                 hasConflict: true,
-                reason: `⚠️ Cart-la already "${cartName}" irukku. Complete "${newName}" add panna first "${cartName}"-ah cart-la irunthu remove pannunga.`
+                reason: `⚠️ Your cart already has "${cartName}". To add the complete "${newName}" panel, please remove "${cartName}" from cart first.`
               };
             }
           }
@@ -489,7 +512,7 @@ const ConflictValidator = {
   }
 };
 
-// Global Exposure
+// Global Exposure across all environments
 if (typeof window !== 'undefined') {
   window.Utils = Utils;
   window.ConflictValidator = ConflictValidator;

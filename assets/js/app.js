@@ -1,9 +1,12 @@
 /* file: assets/js/app.js */
 /**
- * Selfcare Diagnostics - Main Application Controller (app.js) v3.3.0 (Zero-Lag Engine)
- * Manages core initialization, instant local-first session restoration,
- * multi-tenant cart state synchronization, ConflictValidator integration,
- * background IndexedDB, and smart dev Service Worker updates.
+ * Selfcare Diagnostics - Main Application Controller (app.js) v4.0.0 (Zero-Lag Engine)
+ * Features:
+ * - Instant synchronous 0ms local-first session restoration.
+ * - Multi-tenant vault-aware cart isolation (selfcare_cart_${activeUser}).
+ * - Multi-Patient context detection & isolated dynamic ConflictValidator.
+ * - Allows multiple family members to independently order same tests without false blocks.
+ * - Non-blocking IndexedDB & smart dev Service Worker bypass.
  */
 
 const App = {
@@ -11,13 +14,13 @@ const App = {
 
   async init() {
     try {
-      console.log('[Selfcare App] Initializing v3.3.0 (Instant 0ms Mode)...');
+      console.log('[Selfcare App] Initializing v4.0.0 (Zero-Lag Engine)...');
       
-      // 1. Instant Synchronous User Session Check (No network call, 0ms lag)
+      // 1. Instant Synchronous User Session Check (0ms lag)
       if (typeof Auth !== 'undefined' && Auth.getUser) {
         const currentUser = Auth.getUser();
         if (currentUser) {
-          console.log('[Selfcare App] Permanent Active User detected:', currentUser.mobile);
+          console.log('[Selfcare App] Active User detected:', currentUser.mobile || currentUser.phone);
         }
       }
 
@@ -42,10 +45,38 @@ const App = {
       // 6. Navigation listeners (Back button cart sync)
       this.setupNavigationListeners();
 
-      console.log('[Selfcare App] Instant initialization complete.');
+      console.log('[Selfcare App] Initialization complete.');
     } catch (error) {
       console.error('[Selfcare App] Initialization error:', error);
     }
+  },
+
+  safeShowToast(message, type = 'info') {
+    if (typeof Utils !== 'undefined' && Utils.showToast) {
+      Utils.showToast(message, type);
+    } else {
+      alert(message);
+    }
+  },
+
+  /**
+   * Resolves the current target patient context (defaults to 'SELF')
+   */
+  getTargetPatientId() {
+    try {
+      if (typeof window !== 'undefined') {
+        const urlParams = new URLSearchParams(window.location.search);
+        const pId = urlParams.get('patientId');
+        if (pId && pId.trim()) {
+          const clean = decodeURIComponent(pId.trim());
+          sessionStorage.setItem('selfcare_target_patient_id', clean);
+          return clean;
+        }
+      }
+      const stored = sessionStorage.getItem('selfcare_target_patient_id');
+      if (stored && stored.trim()) return stored.trim();
+    } catch (e) {}
+    return 'SELF';
   },
 
   /**
@@ -93,9 +124,9 @@ const App = {
    */
   async loadCart() {
     this.loadCartDirect();
-    if (this.cart.length === 0 && typeof OfflineDB !== 'undefined' && OfflineDB.getAll) {
+    if (this.cart.length === 0 && typeof OfflineDB !== 'undefined' && OfflineDB.getCart) {
       try {
-        const dbCart = await OfflineDB.getAll('cart');
+        const dbCart = await OfflineDB.getCart();
         if (Array.isArray(dbCart) && dbCart.length > 0) {
           this.cart = dbCart;
           this.updateCartUI();
@@ -106,7 +137,7 @@ const App = {
 
   /**
    * SMART SERVICE WORKER HANDLER:
-   * Acode preview / localhost-il cache lock aagaamal unregister seithu preview tharum.
+   * Localhost/preview-ல் கேச் லாக் ஆகாமல் unregister செய்து preview தரும்.
    */
   handleServiceWorker() {
     if (!('serviceWorker' in navigator)) return;
@@ -149,7 +180,7 @@ const App = {
         }
       });
     }).catch((err) => {
-      console.warn('[Selfcare App] Service Worker registration failed:', err);
+      console.warn('[Selfcare App] Service Worker registration notice:', err);
     });
 
     let refreshing = false;
@@ -182,7 +213,7 @@ const App = {
       }
       this.updateCartUI();
 
-      // Background IndexedDB write without blocking thread
+      // Background IndexedDB write without blocking UI thread
       if (typeof OfflineDB !== 'undefined' && OfflineDB.saveCart) {
         OfflineDB.saveCart(this.cart).catch(() => {});
       }
@@ -192,80 +223,89 @@ const App = {
   },
 
   /**
-   * Safe Add to Cart with Dynamic ConflictValidator & Parameter Preservation
+   * Safe Add to Cart with Multi-Patient Isolation & Dynamic ConflictValidator
    */
   async addToCart(item) {
     try {
       if (!item) return;
 
+      const targetPatientId = item.patientId || this.getTargetPatientId() || 'SELF';
       const itemId = String(item.TestID || item.PackageID || item.id || '');
-      const itemName = item.TestName || item.PackageName || item.name || '';
+      const itemName = item.TestName || item.PackageName || item.name || 'Diagnostic Item';
+      const itemCode = String(item.TestCode || item.PackageCode || item.code || 'ITEM');
 
-      // 1. Conflict Check: Validate dynamic backend parameters
+      const itemWithPatient = {
+        ...item,
+        patientId: targetPatientId
+      };
+
+      // 1. Multi-Patient Isolated Conflict Check
       if (typeof ConflictValidator !== 'undefined' && typeof ConflictValidator.checkConflict === 'function') {
-        const conflict = ConflictValidator.checkConflict(item, this.cart);
+        // Filter only tests belonging to THIS specific family member
+        const patientCart = this.cart.filter(i => (i.patientId || 'SELF') === targetPatientId);
+        const conflict = ConflictValidator.checkConflict(itemWithPatient, patientCart);
+        
         if (conflict && conflict.hasConflict) {
-          if (typeof Utils !== 'undefined' && Utils.showToast) {
-            Utils.showToast(conflict.reason, 'error');
-          } else {
-            alert(conflict.reason);
-          }
+          this.safeShowToast(conflict.reason, 'error');
           return;
         }
       }
       
-      const exists = this.cart.find(c => {
+      // 2. Patient-Scoped Duplicate Check
+      // (Allows different patients in the family to order the exact same test, e.g. CBC)
+      const alreadyInCartForPatient = this.cart.find(c => {
         const cId = String(c.TestID || c.PackageID || c.id || '');
-        return cId === itemId;
+        const cCode = String(c.TestCode || c.PackageCode || c.code || '');
+        const cPatientId = c.patientId || 'SELF';
+        return (cId === itemId || cCode === itemCode) && cPatientId === targetPatientId;
       });
 
-      if (exists) {
-        if (typeof Utils !== 'undefined' && Utils.showToast) {
-          Utils.showToast(`${itemName} is already in your cart`, 'info');
-        }
+      if (alreadyInCartForPatient) {
+        this.safeShowToast(`"${itemName}" is already in cart for this member`, 'info');
         return;
       }
 
-      // Preserves all backend fields (Parameters, TestIDs, Fasting) for downstream validation
+      // 3. Structured Cart Item Payload
       const cartItem = {
         ...item,
         id: itemId,
         TestID: item.TestID || null,
         PackageID: item.PackageID || null,
         name: itemName,
-        code: item.TestCode || item.PackageCode || item.code || 'ITEM',
+        code: itemCode,
         price: Number(item.OfferPrice || item.price || item.MRP || 0),
         mrp: Number(item.MRP || item.mrp || 0),
-        type: item.TestID ? 'test' : (item.PackageID ? 'package' : (item.type || 'item')),
+        type: (item.PackageID || item.PackageCode || String(itemCode).startsWith('PKG')) ? 'package' : 'test',
+        patientId: targetPatientId,
         addedAt: new Date().toISOString()
       };
 
       this.cart.push(cartItem);
       await this.saveCart(this.cart);
 
-      if (typeof Utils !== 'undefined' && Utils.showToast) {
-        Utils.showToast(`${itemName} added to cart`, 'success');
-      }
+      this.safeShowToast(`Added "${itemName}" to cart`, 'success');
     } catch (e) {
       console.error('[Selfcare App] Error adding to cart:', e);
-      if (typeof Utils !== 'undefined' && Utils.showToast) {
-        Utils.showToast('Could not add item to cart', 'error');
-      }
+      this.safeShowToast('Could not add item to cart', 'error');
     }
   },
 
-  async removeFromCart(itemId) {
+  async removeFromCart(itemId, targetPatientId = null) {
     try {
-      const sId = String(itemId);
+      const sId = String(itemId).trim().toLowerCase();
       this.cart = this.cart.filter(c => {
-        const cId = String(c.id || c.TestID || c.PackageID || '');
+        const cId = String(c.id || c.TestID || c.PackageID || c.code || '').trim().toLowerCase();
+        const cPatientId = c.patientId || 'SELF';
+
+        if (targetPatientId) {
+          // Remove only this patient's instance of the item
+          return !(cId === sId && cPatientId === targetPatientId);
+        }
         return cId !== sId;
       });
-      await this.saveCart(this.cart);
 
-      if (typeof Utils !== 'undefined' && Utils.showToast) {
-        Utils.showToast('Item removed from cart', 'info');
-      }
+      await this.saveCart(this.cart);
+      this.safeShowToast('Item removed from cart', 'info');
     } catch (e) {
       console.error('[Selfcare App] Error removing from cart:', e);
     }

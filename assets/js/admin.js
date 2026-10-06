@@ -1,9 +1,11 @@
 /* file: assets/js/admin.js */
 /**
- * Selfcare Diagnostics - Master Admin Operating System Engine v8.6.0
+ * Selfcare Diagnostics - Master Admin Operating System Engine v8.7.0
  * Features:
  * - Live Bi-directional Google Sheets sync for 500+ Tests & Packages.
  * - Auto-sanitization of TestID & PackageID to prevent IndexedDB keyPath crashes.
+ * - Persistent Report Upload with Base64 FileReader (Fixes expired blob: URLs).
+ * - Direct WhatsApp wa.me link compliance.
  * - Instant zero-lag cache restore + background cloud fetch.
  */
 
@@ -1252,7 +1254,7 @@ const AdminApp = {
   },
 
   /* =========================================================
-     7. REPORT UPLOAD HUB
+     7. REPORT UPLOAD HUB (PERSISTENT BASE64 / LINK STORAGE)
      ========================================================= */
   populateReportBookingSelect() {
     const select = document.getElementById('report-booking-select');
@@ -1281,6 +1283,15 @@ const AdminApp = {
     }
   },
 
+  async readFileAsDataUrl(file) {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(file);
+    });
+  },
+
   async handleReportSubmit(e) {
     e.preventDefault();
     const bookingId = document.getElementById('report-booking-select').value;
@@ -1294,9 +1305,18 @@ const AdminApp = {
       return;
     }
 
-    let reportUrl = directLink || 'assets/reports/sample_nabl_report.pdf';
+    let reportUrl = directLink || '';
+
+    // PERSISTENT STORAGE: Read local file as persistent Data URL to prevent tab close expiration
     if (fileInput.files && fileInput.files[0]) {
-      reportUrl = URL.createObjectURL(fileInput.files[0]);
+      const base64Report = await this.readFileAsDataUrl(fileInput.files[0]);
+      if (base64Report) {
+        reportUrl = base64Report;
+      }
+    }
+
+    if (!reportUrl) {
+      reportUrl = 'assets/reports/sample_nabl_report.pdf';
     }
 
     let bookings = JSON.parse(localStorage.getItem('selfcare_bookings_db') || '[]');
@@ -1451,18 +1471,19 @@ const AdminApp = {
     const mrp = item.MRP;
     const discount = Math.round(((mrp - price) / mrp) * 100);
 
-    const message = `🌟 Selfcare Diagnostics - Special Offer!\n\nGet ${title} at just ₹${price} (MRP: ₹${mrp}, ${discount}% OFF).\nIncludes free doorstep sample pickup in Chennai!\n\nBook instantly: https://selfcare.in/app?ref=${id}`;
+    const message = `🌟 Selfcare Diagnostics - Special Offer!\n\nGet ${title} at just ₹${price} (MRP: ₹${mrp}, ${discount}% OFF).\nIncludes free doorstep sample pickup in Chennai!\n\nBook instantly: https://selfcarediagnostics.com?ref=${id}`;
     msgBox.value = message;
     previewBox.innerHTML = message.replace(/\n/g, '<br>');
   },
 
   shareOnWhatsApp() {
     const text = encodeURIComponent(document.getElementById('social-share-msg').value);
-    window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
+    // WhatsApp Direct Link Compliance (Prevents browser unknown scheme issues)
+    window.open(`https://wa.me/917010174890?text=${text}`, '_blank');
   },
 
   shareOnFacebook() {
-    const url = encodeURIComponent('https://selfcare.in');
+    const url = encodeURIComponent('https://selfcarediagnostics.com');
     window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}`, '_blank');
   },
 

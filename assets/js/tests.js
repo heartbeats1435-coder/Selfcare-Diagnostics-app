@@ -1,22 +1,24 @@
-/* file: assets/js/tests.js */
 /**
- * Selfcare Diagnostics - Tests Page JS (Zero-Fail Edition) v5.1.0
+ * Selfcare Diagnostics - Tests Page JS (Zero-Fail Edition) v6.2.0
  * Features:
- * 1. Dual-Layer Dynamic Conflict Validation check before adding to cart (CBC vs Hb, RFT vs Urea, Package vs Test).
- * 2. Multi-tenant Vault-Aware Cart Isolation (selfcare_cart_${activeUser}).
- * 3. Dedicated Category Switcher (selectCategory).
- * 4. Native Web Speech Recognition API Integration (Real-time voice search).
- * 5. Parameters Count Badge on outside card box.
- * 6. Natural Language Symptom Search Engine (Full 40 Symptoms Mapping).
- * 7. Fly-to-Cart Animation & 3D detail modal.
- * 8. Package-Isolated Existence Checker.
- * 9. Search State Persistence during Background Offline Sync.
+ * 1. Multi-Patient Isolated Conflict Validation.
+ * 2. Target Patient Context Detection via URL & sessionStorage (targetPatientId).
+ * 3. Patient-Isolated Cart Existence Checker (isItemInCart).
+ * 4. Multi-tenant Vault-Aware Cart Isolation.
+ * 5. Dedicated Category Switcher.
+ * 6. Native Web Speech Recognition API Integration (Real-time voice search).
+ * 7. Parameters Count Badge on outside card box.
+ * 8. Natural Language Symptom Search Engine (Full 40 Symptoms Mapping).
+ * 9. Fly-to-Cart Animation & 3D detail modal.
+ * 10. Smooth 5s Auto-Slider with Touch/Hover Pause & Interval Leak Protection.
+ * 11. Native Web Share API (navigator.share) with clean clipboard fallback for Tests.
  */
 
 const TestsPage = {
   allTests: [],
   currentCategory: 'All',
   speechRecognitionInstance: null,
+  sliderIntervalId: null,
 
   symptomDictionary: {
     'fever': ['cbc', 'esr', 'crp', 'malaria', 'widal', 'dengue', 'typhoid', 'hemogram', 't0001', 't0002', 't0041', 't0043m', 't0051w'],
@@ -78,6 +80,29 @@ const TestsPage = {
     } catch (error) {
       console.error('Tests page init error:', error);
     }
+  },
+
+  /**
+   * Identifies the current active patient context
+   */
+  getTargetPatientId() {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const paramId = urlParams.get('patientId');
+      if (paramId && paramId.trim()) {
+        const cleanId = decodeURIComponent(paramId.trim());
+        sessionStorage.setItem('selfcare_target_patient_id', cleanId);
+        return cleanId;
+      }
+
+      const storedId = sessionStorage.getItem('selfcare_target_patient_id');
+      if (storedId && storedId.trim()) {
+        return storedId.trim();
+      }
+    } catch (e) {
+      console.warn('Error resolving targetPatientId:', e);
+    }
+    return 'SELF';
   },
 
   async loadTestsCatalogue() {
@@ -158,15 +183,21 @@ const TestsPage = {
   },
 
   /**
-   * Package-Isolated Existence Checker
+   * Patient-Isolated Existence Checker
    */
   isItemInCart(testId, testCode, testName) {
     const cart = this.getCart();
+    const targetPatientId = this.getTargetPatientId();
     const sId = String(testId || '').trim().toLowerCase();
     const sCode = String(testCode || '').trim().toLowerCase();
     const sName = String(testName || '').trim().toLowerCase();
 
     return cart.some(item => {
+      const itemPatientId = item.patientId || 'SELF';
+      if (itemPatientId !== targetPatientId) {
+        return false;
+      }
+
       if (item.type === 'package' || item.PackageID || item.PackageCode || String(item.code || '').startsWith('PKG')) {
         return false;
       }
@@ -225,9 +256,6 @@ const TestsPage = {
     }
   },
 
-  /**
-   * Multi-tenant Isolated Toggle Cart Action
-   */
   toggleCart(testOrId, event) {
     let test = testOrId;
     if (typeof testOrId === 'string') {
@@ -235,6 +263,7 @@ const TestsPage = {
     }
     if (!test) return;
 
+    const targetPatientId = this.getTargetPatientId();
     const testCode = test.TestCode || 'TEST';
     const testId = test.TestID || testCode;
     const testName = test.TestName || '';
@@ -242,16 +271,36 @@ const TestsPage = {
     let cart = this.getCart();
     const isAdded = this.isItemInCart(testId, testCode, testName);
 
+    const testItemWithMeta = {
+      ...test,
+      id: testId,
+      TestID: testId,
+      TestCode: testCode,
+      TestName: testName,
+      name: testName,
+      code: testCode,
+      price: Number(test.OfferPrice || test.price || 0),
+      mrp: Number(test.MRP || test.mrp || 0),
+      type: 'test',
+      patientId: targetPatientId,
+      addedAt: new Date().toISOString()
+    };
+
     if (!isAdded) {
       if (typeof ConflictValidator !== 'undefined') {
-        const conflict = ConflictValidator.checkConflict(test, cart);
-        if (conflict && conflict.hasConflict) {
-          if (typeof Utils !== 'undefined') {
-            Utils.showToast(conflict.reason, 'error');
-          } else {
-            alert(conflict.reason);
+        try {
+          const patientOnlyCart = cart.filter(i => (i.patientId || 'SELF') === targetPatientId);
+          const conflict = ConflictValidator.checkConflict(testItemWithMeta, patientOnlyCart);
+          if (conflict && conflict.hasConflict) {
+            if (typeof Utils !== 'undefined') {
+              Utils.showToast(conflict.reason, 'error');
+            } else {
+              alert(conflict.reason);
+            }
+            return;
           }
-          return;
+        } catch (cvErr) {
+          console.warn('Conflict check non-fatal exception:', cvErr);
         }
       }
     }
@@ -263,29 +312,23 @@ const TestsPage = {
 
     if (isAdded) {
       cart = cart.filter(i => {
+        const itemPatientId = i.patientId || 'SELF';
+        if (itemPatientId !== targetPatientId) {
+          return true;
+        }
+
         if (i.type === 'package' || i.PackageID) return true;
         const iId = String(i.TestID || i.id || i.TestCode || i.code || '');
         const iCode = String(i.TestCode || i.code || '');
         const iName = String(i.TestName || i.name || '');
         return iId !== testId && iCode !== testCode && iName !== testName;
       });
+
       if (typeof Utils !== 'undefined') {
         Utils.showToast(`Removed "${testName}" from cart`, 'info');
       }
     } else {
-      cart.push({
-        ...test,
-        id: testId,
-        TestID: testId,
-        TestCode: testCode,
-        TestName: testName,
-        name: testName,
-        code: testCode,
-        price: Number(test.OfferPrice || test.price || 0),
-        mrp: Number(test.MRP || test.mrp || 0),
-        type: 'test',
-        addedAt: new Date().toISOString()
-      });
+      cart.push(testItemWithMeta);
       if (typeof Utils !== 'undefined') {
         Utils.showToast(`Added "${testName}" to cart`, 'success');
       }
@@ -313,9 +356,6 @@ const TestsPage = {
     this.filterAndRender();
   },
 
-  /**
-   * Category Filter Handler for UI Pills / Chips
-   */
   selectCategory(category) {
     this.currentCategory = category || 'All';
 
@@ -385,7 +425,7 @@ const TestsPage = {
       const duration = match ? match[0] : '10 - 12 Hours';
       return {
         isFasting: true,
-        badgeText: '⚠️ Fasting Required',
+        badgeText: '⚠️️ Fasting Required',
         cardText: 'Fasting',
         durationText: `${duration} overnight fasting is required (Water is permitted).`
       };
@@ -397,6 +437,118 @@ const TestsPage = {
         durationText: 'No fasting required. Sample can be collected at any time.'
       };
     }
+  },
+
+  getBaseAppUrl() {
+    if (typeof window !== 'undefined' && window.location) {
+      const host = window.location.hostname;
+      const isLocal = host === 'localhost' || host === '127.0.0.1' || host === '' || window.location.protocol === 'file:';
+      if (isLocal) {
+        return 'https://heartbeats1435-coder.github.io/Selfcare-Diagnostics-app';
+      }
+      const pathname = window.location.pathname;
+      const basePath = pathname.substring(0, pathname.lastIndexOf('/'));
+      return `${window.location.origin}${basePath}`;
+    }
+    return 'https://heartbeats1435-coder.github.io/Selfcare-Diagnostics-app';
+  },
+
+  async copyToClipboard(text) {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      if (typeof Utils !== 'undefined' && Utils.showToast) {
+        Utils.showToast('Share link copied to clipboard!', 'success');
+      }
+    } catch (err) {
+      console.error('Clipboard copy failed:', err);
+      if (typeof Utils !== 'undefined' && Utils.showToast) {
+        Utils.showToast('Unable to copy share link', 'error');
+      }
+    }
+  },
+
+  async executeShare(shareTitle, shareBody, shareUrl) {
+    const fullShareText = `${shareBody}\n\n${shareUrl}`;
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        await navigator.share({
+          title: shareTitle,
+          text: fullShareText
+        });
+        return;
+      } catch (err) {
+        if (err.name === 'AbortError') return;
+        try {
+          await navigator.share({
+            title: shareTitle,
+            text: shareBody,
+            url: shareUrl
+          });
+          return;
+        } catch (err2) {
+          if (err2.name === 'AbortError') return;
+          console.warn('Native share fallback:', err2);
+        }
+      }
+    }
+    await this.copyToClipboard(fullShareText);
+  },
+
+  shareTest(testOrId, event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (typeof event.stopImmediatePropagation === 'function') {
+        event.stopImmediatePropagation();
+      }
+    }
+
+    let test = testOrId;
+    if (typeof testOrId === 'string') {
+      const cleanId = testOrId.trim();
+      test = this.allTests.find(t => String(t.TestID) === cleanId || String(t.TestCode) === cleanId);
+      if (!test) {
+        try {
+          const cached = JSON.parse(localStorage.getItem('cache_tests') || '[]');
+          test = cached.find(t => String(t.TestID) === cleanId || String(t.TestCode) === cleanId);
+        } catch (e) {}
+      }
+    }
+
+    if (!test && typeof testOrId === 'object' && testOrId !== null) {
+      test = testOrId;
+    }
+
+    if (!test) {
+      console.warn('Test not found for sharing:', testOrId);
+      return;
+    }
+
+    const rawId = test.TestID || test.TestCode || test.id || 'TEST';
+    const testId = String(rawId).trim();
+    const testName = test.TestName || test.name || 'Diagnostic Test';
+    const price = Number(test.OfferPrice || test.price || test.MRP || 0);
+    const priceFormatted = (typeof Utils !== 'undefined' && Utils.formatCurrency)
+      ? Utils.formatCurrency(price)
+      : (`₹${price}`);
+
+    const baseUrl = this.getBaseAppUrl();
+    const shareUrl = `${baseUrl}/index.html?test=${encodeURIComponent(testId)}`;
+    const shareTitle = `🧪 SELFCARE DIAGNOSTICS - ${testName}`;
+    const shareBody = `🧪 SELFCARE DIAGNOSTICS\n\nTest: ${testName}\nPrice: ${priceFormatted}\n\n📍 Home Sample Collection Available\n⚡ Fast Reports\n🏠 24/7 Home Collection\n\nView Test:`;
+
+    this.executeShare(shareTitle, shareBody, shareUrl);
   },
 
   renderTests(tests) {
@@ -420,13 +572,24 @@ const TestsPage = {
         : `<button class="book-btn add-cart-btn" onclick="TestsPage.toggleCartById('${Utils.escapeHtml(testId)}', event)">🛒 Add To Cart</button>`;
 
       return `
-        <div class="test-card glass-card animate-fade">
+        <div class="test-card glass-card animate-fade" style="position: relative;">
           <div class="test-card-top">
             <div class="test-card-header-row">
-              <span class="test-code-tag">${Utils.escapeHtml(testCode)}</span>
-              <span class="card-fasting-tag ${fastingInfo.isFasting ? 'fasting' : 'non-fasting'}">
-                ${fastingInfo.cardText}
-              </span>
+              <div class="test-card-badge-group" style="display: flex; align-items: center; gap: 6px;">
+                <span class="test-code-tag">${Utils.escapeHtml(testCode)}</span>
+                <span class="card-fasting-tag ${fastingInfo.isFasting ? 'fasting' : 'non-fasting'}">
+                  ${fastingInfo.cardText}
+                </span>
+              </div>
+              <button type="button" class="card-share-btn" aria-label="Share Test" title="Share Test" onclick="TestsPage.shareTest('${Utils.escapeHtml(testId)}', event)">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <circle cx="18" cy="5" r="3"></circle>
+                  <circle cx="6" cy="12" r="3"></circle>
+                  <circle cx="18" cy="19" r="3"></circle>
+                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                  <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                </svg>
+              </button>
             </div>
             <h4>${Utils.escapeHtml(test.TestName)}</h4>
             <div class="card-param-badge">
@@ -540,7 +703,7 @@ const TestsPage = {
           voiceBtn.innerHTML = '🔴';
         }
         if (typeof Utils !== 'undefined') {
-          Utils.showToast('🎙️ Listening... Speak your test or symptom now', 'info');
+          Utils.showToast('🎙 Listening... Speak your test or symptom now', 'info');
         }
       };
 
@@ -622,15 +785,38 @@ const TestsPage = {
     });
   },
 
+  /**
+   * Premium 3D Promo Slider Engine
+   */
   setupAutoSlideCarousel() {
     const track = document.getElementById('singleSliderTrack');
-    if (track) {
-      let currentSlide = 0;
-      const totalSlides = track.children.length;
-      setInterval(() => {
+    if (!track) return;
+
+    if (this.sliderIntervalId) {
+      clearInterval(this.sliderIntervalId);
+      this.sliderIntervalId = null;
+    }
+
+    let currentSlide = 0;
+    const totalSlides = track.children.length;
+    if (totalSlides <= 1) return;
+
+    const startSliding = () => {
+      if (this.sliderIntervalId) clearInterval(this.sliderIntervalId);
+      this.sliderIntervalId = setInterval(() => {
         currentSlide = (currentSlide + 1) % totalSlides;
         track.style.transform = `translateX(-${currentSlide * 100}%)`;
-      }, 3200);
+      }, 5000);
+    };
+
+    startSliding();
+
+    const sliderBox = track.closest('.single-slider-box');
+    if (sliderBox) {
+      sliderBox.addEventListener('mouseenter', () => clearInterval(this.sliderIntervalId));
+      sliderBox.addEventListener('mouseleave', () => startSliding());
+      sliderBox.addEventListener('touchstart', () => clearInterval(this.sliderIntervalId), { passive: true });
+      sliderBox.addEventListener('touchend', () => startSliding(), { passive: true });
     }
   },
 
@@ -658,14 +844,15 @@ const TestsPage = {
     }
     if (!test) return;
 
+    const actualId = test.TestID || test.TestCode;
     const formattedParams = this.formatParameters(test);
     const paramCount = this.getTestParameterCount(test);
     const fastingInfo = this.getFastingDetails(test);
-    const alreadyAdded = this.isItemInCart(test.TestID || test.TestCode, test.TestCode, test.TestName);
+    const alreadyAdded = this.isItemInCart(actualId, test.TestCode, test.TestName);
 
     const actionBtn = alreadyAdded
-      ? `<button class="modal-action-btn remove-btn" onclick="TestsPage.toggleCartById('${Utils.escapeHtml(testId)}', event); TestsPage.showTestDetails('${Utils.escapeHtml(testId)}');">🗑️ Remove from Cart</button>`
-      : `<button class="modal-action-btn add-btn" onclick="TestsPage.toggleCartById('${Utils.escapeHtml(testId)}', event); TestsPage.showTestDetails('${Utils.escapeHtml(testId)}');">🛒 Add to Cart</button>`;
+      ? `<button class="modal-action-btn remove-btn" onclick="TestsPage.toggleCartById('${Utils.escapeHtml(actualId)}', event); TestsPage.showTestDetails('${Utils.escapeHtml(actualId)}');">🗑️ Remove from Cart</button>`
+      : `<button class="modal-action-btn add-btn" onclick="TestsPage.toggleCartById('${Utils.escapeHtml(actualId)}', event); TestsPage.showTestDetails('${Utils.escapeHtml(actualId)}');">🛒 Add to Cart</button>`;
 
     let modal = document.getElementById('test-detail-modal');
     if (!modal) {
@@ -682,7 +869,18 @@ const TestsPage = {
             <span class="test-avatar-icon">🧪</span>
             <h3>${Utils.escapeHtml(test.TestName)}</h3>
           </div>
-          <button class="sia-close-btn" onclick="document.getElementById('test-detail-modal').style.display='none'">✕</button>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <button type="button" class="card-share-btn modal-share-btn" aria-label="Share Test" title="Share Test" onclick="TestsPage.shareTest('${Utils.escapeHtml(actualId)}', event)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="18" cy="5" r="3"></circle>
+                <circle cx="6" cy="12" r="3"></circle>
+                <circle cx="18" cy="19" r="3"></circle>
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+              </svg>
+            </button>
+            <button class="sia-close-btn" onclick="document.getElementById('test-detail-modal').style.display='none'">✕</button>
+          </div>
         </div>
 
         <div class="sia-modal-body">
