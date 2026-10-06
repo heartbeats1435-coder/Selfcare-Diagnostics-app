@@ -1,6 +1,7 @@
 /**
- * Selfcare Diagnostics - Packages Page CSS v5.5.0
- * Complete 3D Glassmorphism, 2-Column Grid, Dynamic Category Bar & 3-Tier Neon Glow Effects
+ * Selfcare Diagnostics - Packages Page CSS v5.6.0
+ * Complete 3D Glassmorphism, 2-Column Grid, Dynamic Category Bar, 3-Tier Neon Glow Effects
+ * & Native Card / Modal Share Button Setup
  */
 
 /* Sticky Top Search & Category Section */
@@ -142,7 +143,7 @@
 }
 
 /* ==========================================================================
-   NEON GLOWING LIGHT EFFECTS FOR FIRST 3 PACKAGES
+   NEON GLOWING LIGHT EFFECTS FOR TOP PACKAGES
    ========================================================================== */
 
 /* Base Neon Card Setup */
@@ -202,7 +203,7 @@
   }
 }
 
-/* Pack 3: Ultra Turquoise / Teal Neon Glow (Recommended Spotlight) */
+/* Pack 3: Ultra Turquoise / Teal Neon Glow */
 .neon-card-3 {
   border: 2px solid #00F5D4 !important;
   background: linear-gradient(160deg, #FFFFFF 0%, #E6FCF7 100%) !important;
@@ -218,7 +219,7 @@
   }
   50% {
     border-color: #05FFA1;
-    box-shadow: 0 0 24px rgba(0, 245, 212, 0.85), 0 0 44px rgba(5, 255, 161, 0.45), inset 0 0 14px rgba(0, 245, 212, 0.25);
+    box-shadow: 0 0 24px rgba(5, 255, 161, 0.85), 0 0 44px rgba(5, 255, 161, 0.45), inset 0 0 14px rgba(0, 245, 212, 0.25);
     transform: translateY(-2px);
   }
   100% {
@@ -280,6 +281,15 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 2px;
+  gap: 6px;
+}
+
+.package-card-badge-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  min-width: 0;
 }
 
 .package-card-top h4 {
@@ -295,6 +305,70 @@
   font-weight: 700;
   color: #536E66;
   text-transform: uppercase;
+}
+
+/* ==========================================================================
+   CARD SHARE BUTTON (COMPACT & TOUCH OPTIMIZED)
+   ========================================================================== */
+.card-share-btn {
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
+  min-height: 26px;
+  border-radius: 50%;
+  background: rgba(7, 136, 102, 0.08);
+  border: 1px solid rgba(7, 136, 102, 0.2);
+  color: #045D49;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  flex-shrink: 0;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  z-index: 5;
+}
+
+.card-share-btn:hover {
+  background: rgba(7, 136, 102, 0.16);
+  border-color: #078866;
+  color: #078866;
+  transform: scale(1.08);
+}
+
+.card-share-btn:active {
+  transform: scale(0.90);
+  background: rgba(7, 136, 102, 0.25);
+}
+
+.card-share-btn svg {
+  width: 13px;
+  height: 13px;
+  pointer-events: none;
+}
+
+/* Modal Header Share Button */
+.modal-share-btn {
+  background: rgba(255, 255, 255, 0.16) !important;
+  border: 1px solid rgba(255, 255, 255, 0.28) !important;
+  color: #FFFFFF !important;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+}
+
+.modal-share-btn:hover {
+  background: rgba(255, 255, 255, 0.28) !important;
+  color: #FFFFFF !important;
+  transform: scale(1.06);
+}
+
+.modal-share-btn svg {
+  width: 14px;
+  height: 14px;
 }
 
 .card-param-badge {

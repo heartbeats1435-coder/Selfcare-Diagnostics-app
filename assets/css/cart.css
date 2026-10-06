@@ -1,12 +1,12 @@
 /* file: assets/css/cart.css */
 /**
- * Selfcare Diagnostics - Complete 3D Glassmorphism Cart & Checkout Engine v7.4.0
+ * Selfcare Diagnostics - Complete 3D Glassmorphism Cart & Checkout Engine v8.3.0
  * Features:
- * - Perfectly Docked 3-Part Fixed Control Bar above Footer
- * - 3D Glassmorphic Patient Selection Chips with Pop Animation & Zero Overflow
- * - High-end Glowing "Tap to select" Glass Pill Badge
- * - Premium 3D Glassmorphism Modal Styles for UPI Gateway
- * - Dual Separate Add-on Action Buttons (Tests & Packages)
+ * - Compact & Reduced Font Sizing across all Slides & Modals
+ * - Patient Selection on Slide 1 & Reorganized Spacing
+ * - Ultra Crisp 3D Glassmorphic Cards & Tactile Buttons
+ * - Perfectly Docked Fixed Control Bar above Footer
+ * - Zero Overflow, Smooth Spring Pop-in Animations
  */
 
 :root {
@@ -22,12 +22,13 @@
   --text-main: #10231E;
   --text-muted: #536E66;
   --white: #FFFFFF;
-  --glass-bg: rgba(255, 255, 255, 0.85);
+  --glass-bg: rgba(255, 255, 255, 0.88);
   --glass-border: rgba(255, 255, 255, 0.95);
+  --glass-specular: inset 0 1.5px 2px rgba(255, 255, 255, 0.95);
   --radius-sm: 8px;
   --radius-md: 14px;
-  --radius-lg: 24px;
-  --shadow-3d: 0 16px 45px rgba(3, 63, 51, 0.12), 0 4px 10px rgba(7, 136, 102, 0.06);
+  --radius-lg: 18px;
+  --shadow-3d: 0 12px 30px -8px rgba(0, 48, 35, 0.10), 0 3px 8px rgba(7, 136, 102, 0.04);
   --brand-green: #078866;
   --brand-dark: #045D49;
   --brand-light: #ECFDF5;
@@ -43,9 +44,9 @@
 }
 
 body.glass-bg-body {
-  background: radial-gradient(circle at top left, #EDFBF7, #E5F6F0 40%, #F3FAF7 100%);
+  background: radial-gradient(circle at top left, #EDFBF7 0%, #E5F6F0 45%, #F3FAF7 100%);
   color: var(--text-main);
-  padding-bottom: 185px;
+  padding-bottom: 175px;
   min-height: 100vh;
   position: relative;
   overflow-x: hidden;
@@ -53,7 +54,7 @@ body.glass-bg-body {
 }
 
 .main-container {
-  padding: 12px 16px;
+  padding: 10px 14px;
   max-width: 680px;
   margin: 0 auto;
 }
@@ -61,28 +62,30 @@ body.glass-bg-body {
 .cart-wizard-container {
   max-width: 680px;
   margin: 0 auto;
-  padding: 14px 16px;
+  padding: 10px 14px;
 }
 
-/* 3D Glass Panel Classes */
+/* =========================================================
+   3D GLASS PANEL & ELEVATION
+   ========================================================= */
 .glass-panel-3d {
   background: var(--glass-bg);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
   border: 1.5px solid var(--glass-border);
-  box-shadow: 0 16px 36px -10px rgba(0, 48, 35, 0.12), 0 0 0 1px rgba(255, 255, 255, 0.6) inset;
-  border-radius: 20px;
+  box-shadow: 0 12px 28px -8px rgba(0, 48, 35, 0.10), var(--glass-specular);
+  border-radius: 16px;
   position: relative;
   overflow: hidden;
-  transition: all 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .glass-nav-3d {
-  background: rgba(255, 255, 255, 0.96) !important;
-  backdrop-filter: blur(20px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(20px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(190%) !important;
   border-top: 1.5px solid rgba(255, 255, 255, 0.95);
-  box-shadow: 0 -8px 25px rgba(0, 48, 35, 0.08) !important;
+  box-shadow: 0 -6px 20px rgba(0, 48, 35, 0.06) !important;
 }
 
 /* App Header */
@@ -93,15 +96,15 @@ body.glass-bg-body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 18px;
+  padding: 10px 16px;
   background: rgba(255, 255, 255, 0.98);
   border-bottom: 1px solid var(--glass-border);
-  box-shadow: 0 4px 20px rgba(7, 136, 102, 0.06);
+  box-shadow: 0 3px 15px rgba(7, 136, 102, 0.05);
 }
 
 .header-logo {
-  height: 40px;
-  max-width: 165px;
+  height: 36px;
+  max-width: 150px;
   object-fit: contain;
 }
 
@@ -111,10 +114,10 @@ body.glass-bg-body {
 }
 
 .logo-text {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 900;
   color: var(--dark-green);
-  letter-spacing: -0.5px;
+  letter-spacing: -0.4px;
 }
 
 .logo-sub {
@@ -123,26 +126,32 @@ body.glass-bg-body {
 }
 
 .tagline {
-  font-size: 10px;
+  font-size: 9.5px;
   color: var(--text-muted);
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.8px;
+  letter-spacing: 0.6px;
 }
 
 .clear-cart-text-btn {
   background: rgba(228, 0, 90, 0.08);
   border: 1px solid rgba(228, 0, 90, 0.25);
   color: var(--primary-pink);
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 800;
-  padding: 6px 12px;
-  border-radius: 8px;
+  padding: 5px 10px;
+  border-radius: 7px;
   cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.clear-cart-text-btn:active {
+  transform: scale(0.95);
+  background: rgba(228, 0, 90, 0.16);
 }
 
 /* =========================================================
-   EMPTY CART 3D GLASSMORPHISM STATE
+   EMPTY CART STATE
    ========================================================= */
 .empty-cart-card {
   display: flex;
@@ -150,10 +159,10 @@ body.glass-bg-body {
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 42px 24px;
-  margin: 28px auto 20px;
-  max-width: 440px;
-  border-radius: 24px;
+  padding: 34px 20px;
+  margin: 20px auto 16px;
+  max-width: 420px;
+  border-radius: 20px;
 }
 
 .empty-cart-card[style*="display: none"],
@@ -162,237 +171,141 @@ body.glass-bg-body {
 }
 
 .empty-cart-icon {
-  font-size: 44px;
-  width: 84px;
-  height: 84px;
-  line-height: 1;
+  font-size: 38px;
+  width: 72px;
+  height: 72px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
   background: linear-gradient(135deg, #ECFDF5, #D1FAE5);
-  box-shadow: 0 8px 24px rgba(7, 136, 102, 0.15), inset 0 0 0 2px rgba(255, 255, 255, 0.9);
-  margin-bottom: 18px;
+  box-shadow: 0 8px 20px rgba(7, 136, 102, 0.12), inset 0 0 0 2px rgba(255, 255, 255, 0.9);
+  margin-bottom: 14px;
 }
 
 .empty-cart-card h3 {
-  font-size: 21px;
+  font-size: 18px;
   font-weight: 900;
   color: #111827;
-  margin: 0 0 8px 0;
-  letter-spacing: -0.4px;
+  margin: 0 0 6px 0;
+  letter-spacing: -0.3px;
 }
 
 .empty-cart-card p {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-muted);
-  line-height: 1.55;
-  max-width: 320px;
-  margin: 0 0 24px 0;
+  line-height: 1.5;
+  max-width: 300px;
+  margin: 0 0 20px 0;
 }
 
 .empty-action-btns {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   width: 100%;
-  max-width: 290px;
+  max-width: 270px;
 }
 
 .browse-action-btn {
   width: 100%;
-  padding: 13px 20px;
-  font-size: 13.5px;
+  padding: 11px 18px;
+  font-size: 12.5px;
   font-weight: 800;
-  border-radius: 14px;
+  border-radius: 12px;
   cursor: pointer;
   border: none;
   transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
   display: flex;
   align-items: center;
   justify-content: center;
-  letter-spacing: 0.2px;
 }
 
 .browse-action-btn.primary-btn {
   background: linear-gradient(135deg, #078866, #045D49);
   color: #FFFFFF;
-  box-shadow: 0 6px 18px rgba(7, 136, 102, 0.28);
+  box-shadow: 0 5px 15px rgba(7, 136, 102, 0.24);
 }
 
 .browse-action-btn.primary-btn:active {
   transform: scale(0.97);
-  box-shadow: 0 2px 8px rgba(7, 136, 102, 0.2);
 }
 
 .browse-action-btn.secondary-btn {
   background: rgba(255, 255, 255, 0.9);
   color: #045D49;
   border: 1.5px solid #A7F3D0;
-  box-shadow: 0 4px 14px rgba(7, 136, 102, 0.06);
-}
-
-.browse-action-btn.secondary-btn:active {
-  transform: scale(0.97);
-  background: #ECFDF5;
-}
-
-.animate-pop {
-  animation: popIn3D 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-}
-
-/* Step Wizard Progress Bar */
-.wizard-progress-wrapper {
-  padding: 14px 18px;
-  margin-bottom: 18px;
-}
-
-.wizard-steps-track {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  position: relative;
-}
-
-.step-node {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  cursor: pointer;
-  z-index: 2;
-  transition: all 0.3s ease;
-}
-
-.step-node.locked {
-  opacity: 0.45;
-  cursor: not-allowed !important;
-}
-
-.node-circle {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: #E5E7EB;
-  color: #6B7280;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
-  font-weight: 800;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.08);
-  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.node-label {
-  font-size: 11px;
-  font-weight: 700;
-  color: #9CA3AF;
-  margin-top: 5px;
-}
-
-.step-node.active .node-circle {
-  background: linear-gradient(135deg, #078866, #045D49);
-  color: #FFFFFF;
-  box-shadow: 0 0 0 4px rgba(7, 136, 102, 0.2), 0 6px 14px rgba(7, 136, 102, 0.35);
-  transform: scale(1.12);
-}
-
-.step-node.active .node-label {
-  color: #045D49;
-  font-weight: 800;
-}
-
-.step-node.completed .node-circle {
-  background: #10B981;
-  color: #FFFFFF;
-}
-
-.step-node.completed .node-circle::before {
-  content: "✓";
-}
-
-.step-connector {
-  flex: 1;
-  height: 3px;
-  background: #E5E7EB;
-  margin: 0 8px;
-  margin-top: -14px;
-  border-radius: 4px;
-  transition: background 0.4s ease;
-}
-
-.step-connector.filled {
-  background: linear-gradient(90deg, #10B981, #078866);
+  box-shadow: 0 3px 10px rgba(7, 136, 102, 0.05);
 }
 
 /* Wizard Slide Animation */
 .wizard-slide {
   display: none;
   opacity: 0;
-  transform: translateY(16px) scale(0.98);
-  transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  transform: translateY(12px) scale(0.985);
+  transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .wizard-slide.active {
   display: block;
   opacity: 1;
   transform: translateY(0) scale(1);
-  animation: slideFadeIn 0.38s forwards;
+  animation: slideFadeIn 0.32s forwards;
 }
 
 @keyframes slideFadeIn {
-  from { opacity: 0; transform: translateY(14px) scale(0.97); }
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .slide-header {
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .slide-badge {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 800;
   color: var(--brand-green);
   background: var(--brand-light);
-  padding: 3px 10px;
-  border-radius: 12px;
+  padding: 2.5px 8px;
+  border-radius: 10px;
   display: inline-block;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
   border: 1px solid rgba(7, 136, 102, 0.2);
 }
 
 .slide-header h2 {
-  font-size: 20px;
+  font-size: 17px;
   font-weight: 800;
   color: #111827;
-  margin: 0 0 4px 0;
+  margin: 0 0 3px 0;
+  letter-spacing: -0.2px;
 }
 
 .slide-subtext {
-  font-size: 12.5px;
+  font-size: 11.5px;
   color: #4B5563;
   margin: 0;
 }
 
-/* Slide 1 Collection Cards */
+/* Slide Collection Cards */
 .collection-choice-grid {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  margin-bottom: 18px;
+  gap: 12px;
+  margin-bottom: 14px;
 }
 
 .collection-3d-card {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 18px;
-  background: rgba(255, 255, 255, 0.75);
+  gap: 12px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.85);
   border: 2px solid rgba(255, 255, 255, 0.95);
-  border-radius: 20px;
+  border-radius: 16px;
   cursor: pointer;
-  position: relative;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.04), var(--glass-specular);
   transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
@@ -401,15 +314,15 @@ body.glass-bg-body {
 }
 
 .collection-3d-card.active {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(236, 253, 245, 0.85));
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(236, 253, 245, 0.92));
   border-color: #078866;
-  box-shadow: 0 16px 36px rgba(7, 136, 102, 0.18), 0 0 0 1px #078866;
-  transform: translateY(-2px) scale(1.01);
+  box-shadow: 0 12px 28px rgba(7, 136, 102, 0.15), 0 0 0 1px #078866, var(--glass-specular);
+  transform: translateY(-2px) scale(1.005);
 }
 
 .card-radio-circle {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   border: 2px solid #9CA3AF;
   display: flex;
@@ -423,17 +336,17 @@ body.glass-bg-body {
 }
 
 .collection-3d-card.active .radio-inner {
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   background: #078866;
 }
 
 .choice-icon-wrap {
-  font-size: 32px;
-  width: 54px;
-  height: 54px;
-  border-radius: 16px;
+  font-size: 26px;
+  width: 46px;
+  height: 46px;
+  border-radius: 13px;
   background: #F3F4F6;
   display: flex;
   align-items: center;
@@ -446,25 +359,25 @@ body.glass-bg-body {
 }
 
 .choice-details h3 {
-  font-size: 15.5px;
+  font-size: 13.5px;
   font-weight: 800;
   color: #111827;
-  margin: 0 0 4px 0;
+  margin: 0 0 3px 0;
 }
 
 .choice-details p {
-  font-size: 11.5px;
+  font-size: 11px;
   color: #4B5563;
-  margin: 0 0 8px 0;
-  line-height: 1.4;
+  margin: 0 0 6px 0;
+  line-height: 1.35;
 }
 
 .badge-price-tag {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 800;
   display: inline-block;
-  padding: 3px 8px;
-  border-radius: 6px;
+  padding: 2.5px 7px;
+  border-radius: 5px;
   background: #FEF3C7;
   color: #92400E;
 }
@@ -475,53 +388,46 @@ body.glass-bg-body {
 }
 
 /* =========================================================
-   SLIDE 2: 3D GLASSMORPHIC PATIENT SELECTION & CHIPS (FIXED)
+   PATIENT CHIPS (COMPACT)
    ========================================================= */
 .group-box {
-  padding: 16px;
-  margin-bottom: 16px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
 }
 
 .group-title-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .group-title-row h4 {
-  font-size: 14.5px;
+  font-size: 13px;
   font-weight: 800;
   color: #111827;
   margin: 0;
 }
 
-/* 3D Glowing "Tap to select" Glass Pill Badge */
 .sub-counter {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 800;
   color: var(--brand-green);
   background: linear-gradient(135deg, rgba(236, 253, 245, 0.95), rgba(209, 250, 229, 0.8));
-  border: 1.5px solid rgba(7, 136, 102, 0.35);
-  box-shadow: 0 2px 8px rgba(7, 136, 102, 0.12), inset 0 1px 1px #FFFFFF;
-  padding: 4px 10px;
-  border-radius: 12px;
+  border: 1.2px solid rgba(7, 136, 102, 0.35);
+  box-shadow: 0 2px 6px rgba(7, 136, 102, 0.1), inset 0 1px 1px #FFFFFF;
+  padding: 3px 8px;
+  border-radius: 10px;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  animation: badgePulse 2.5s infinite ease-in-out;
-}
-
-@keyframes badgePulse {
-  0%, 100% { transform: scale(1); box-shadow: 0 2px 8px rgba(7, 136, 102, 0.12); }
-  50% { transform: scale(1.04); box-shadow: 0 4px 14px rgba(7, 136, 102, 0.25); }
+  gap: 3px;
 }
 
 .patient-chips-scroll {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   overflow-x: auto;
-  padding: 6px 4px 12px 4px;
+  padding: 4px 2px 8px 2px;
   scrollbar-width: none;
 }
 
@@ -529,24 +435,22 @@ body.glass-bg-body {
   display: none;
 }
 
-/* 3D Glass Patient Chip */
 .patient-chip {
-  min-width: 170px;
-  max-width: 260px;
+  min-width: 145px;
+  max-width: 220px;
   flex: 0 0 auto;
-  padding: 12px 18px;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.85);
+  padding: 9px 13px;
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1.5px solid rgba(226, 232, 240, 0.9);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04), inset 0 1px 1px rgba(255, 255, 255, 0.9);
+  border: 1.5px solid rgba(226, 232, 240, 0.95);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.03), var(--glass-specular);
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 4px;
+  gap: 3px;
   cursor: pointer;
-  transition: all 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
   position: relative;
   overflow: hidden;
 }
@@ -555,51 +459,41 @@ body.glass-bg-body {
   transform: scale(0.96);
 }
 
-/* Active Selected Patient Chip - 3D Glow & Elevation */
 .patient-chip.active {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(236, 253, 245, 0.92));
   border-color: #078866;
-  border-width: 2px;
-  box-shadow: 0 8px 22px rgba(7, 136, 102, 0.2), 0 0 0 1px #078866, inset 0 1px 2px #FFFFFF;
-  transform: translateY(-2px) scale(1.02);
+  border-width: 1.8px;
+  box-shadow: 0 6px 16px rgba(7, 136, 102, 0.18), 0 0 0 1px #078866, var(--glass-specular);
+  transform: translateY(-1px) scale(1.01);
 }
 
-/* Right-Corner Checkmark Badge for Active Chip */
 .patient-chip.active::after {
   content: "✓";
   position: absolute;
-  top: 8px;
-  right: 10px;
-  font-size: 11px;
+  top: 6px;
+  right: 8px;
+  font-size: 9.5px;
   font-weight: 900;
   color: #FFFFFF;
   background: #078866;
-  width: 18px;
-  height: 18px;
+  width: 15px;
+  height: 15px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 6px rgba(7, 136, 102, 0.3);
-  animation: checkPop 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 2px 4px rgba(7, 136, 102, 0.25);
 }
 
-@keyframes checkPop {
-  0% { transform: scale(0); opacity: 0; }
-  100% { transform: scale(1); opacity: 1; }
-}
-
-/* Chip Name with Zero Overflow Protection */
 .chip-name {
-  font-size: 13.5px;
+  font-size: 12px;
   font-weight: 800;
   color: #0F172A;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
-  padding-right: 14px;
-  letter-spacing: -0.2px;
+  padding-right: 12px;
 }
 
 .patient-chip.active .chip-name {
@@ -607,12 +501,12 @@ body.glass-bg-body {
 }
 
 .chip-relation-tag {
-  font-size: 10.5px;
+  font-size: 9.5px;
   font-weight: 800;
   color: #078866;
   background: #ECFDF5;
-  padding: 2px 8px;
-  border-radius: 6px;
+  padding: 1.5px 6px;
+  border-radius: 5px;
   display: inline-block;
   border: 1px solid rgba(7, 136, 102, 0.15);
 }
@@ -623,7 +517,7 @@ body.glass-bg-body {
   border-color: #078866;
 }
 
-/* Patient Details Display 3D Glass Box */
+/* Patient Details Display Box */
 .patient-info-card-3d {
   background: linear-gradient(135deg, rgba(255,255,255,0.92), rgba(240,253,250,0.88));
   border: 1.5px solid #99F6E4;
@@ -633,63 +527,63 @@ body.glass-bg-body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-bottom: 12px;
+  padding-bottom: 9px;
   border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-  margin-bottom: 12px;
+  margin-bottom: 9px;
 }
 
 .patient-info-header h4 {
-  font-size: 16px;
+  font-size: 13.5px;
   font-weight: 800;
   color: #0F172A;
   margin: 0;
 }
 
 .relation-pill {
-  font-size: 10.5px;
+  font-size: 9.5px;
   font-weight: 800;
   background: #CCFBF1;
   color: #0F766E;
-  padding: 2px 8px;
-  border-radius: 6px;
+  padding: 1.5px 6px;
+  border-radius: 5px;
 }
 
 .mini-glass-btn {
   background: rgba(7, 136, 102, 0.1);
   color: #078866;
   border: 1px solid rgba(7, 136, 102, 0.25);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 800;
-  padding: 5px 10px;
-  border-radius: 8px;
+  padding: 4px 8px;
+  border-radius: 6px;
   cursor: pointer;
 }
 
 .info-row {
   display: flex;
-  gap: 12px;
-  margin-bottom: 10px;
+  gap: 10px;
+  margin-bottom: 8px;
 }
 
 .info-icon {
-  font-size: 16px;
+  font-size: 14px;
   flex-shrink: 0;
 }
 
 .info-text label {
-  font-size: 10.5px;
+  font-size: 9.5px;
   font-weight: 700;
   color: #64748B;
   display: block;
 }
 
 .info-text strong {
-  font-size: 12.5px;
+  font-size: 11.5px;
   color: #1E293B;
 }
 
 .location-link-text {
-  font-size: 11px;
+  font-size: 10px;
   color: #0284C7;
   word-break: break-all;
 }
@@ -697,18 +591,18 @@ body.glass-bg-body {
 /* Slot Picker */
 .slot-days-toggle-3d {
   display: flex;
-  gap: 8px;
-  margin-bottom: 10px;
+  gap: 6px;
+  margin-bottom: 8px;
 }
 
 .slot-day-btn {
   flex: 1;
-  padding: 9px;
-  font-size: 12px;
+  padding: 8px;
+  font-size: 11px;
   font-weight: 800;
   background: #F1F5F9;
   border: 1.5px solid transparent;
-  border-radius: 10px;
+  border-radius: 9px;
   color: #475569;
   cursor: pointer;
 }
@@ -716,15 +610,15 @@ body.glass-bg-body {
 .slot-day-btn.active {
   background: #078866;
   color: #FFFFFF;
-  box-shadow: 0 4px 12px rgba(7, 136, 102, 0.25);
+  box-shadow: 0 3px 10px rgba(7, 136, 102, 0.22);
 }
 
 .slot-dropdown-select-3d {
   width: 100%;
-  padding: 11px 14px;
-  font-size: 13px;
+  padding: 9px 12px;
+  font-size: 11.5px;
   font-weight: 700;
-  border-radius: 12px;
+  border-radius: 10px;
   border: 1.5px solid #CBD5E1;
   background: #FFFFFF;
   color: #1E293B;
@@ -732,65 +626,62 @@ body.glass-bg-body {
 }
 
 .slot-notice-hint {
-  font-size: 10px;
+  font-size: 9.5px;
   color: var(--text-muted);
-  margin-top: 6px;
-  line-height: 1.35;
+  margin-top: 5px;
+  line-height: 1.3;
 }
 
 /* Slide 3: Payment & Offers */
 .payment-options-grid-3d {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .pay-option-card-3d {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 14px;
-  background: rgba(255, 255, 255, 0.75);
+  padding: 11px 13px;
+  background: rgba(255, 255, 255, 0.82);
   border: 1.5px solid #E2E8F0;
-  border-radius: 14px;
+  border-radius: 12px;
   cursor: pointer;
-  transition: all 0.25s ease;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.02), var(--glass-specular);
+  transition: all 0.22s ease;
 }
 
 .pay-option-card-3d.active {
   background: #ECFDF5;
   border-color: #078866;
-  box-shadow: 0 4px 16px rgba(7, 136, 102, 0.14);
+  box-shadow: 0 3px 12px rgba(7, 136, 102, 0.14), var(--glass-specular);
 }
 
 .pay-card-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
-.discount-badge-green {
-  font-size: 10px;
+.pay-title-inline strong {
+  font-size: 12px;
   font-weight: 800;
-  background: #059669;
-  color: #FFFFFF;
-  padding: 2px 6px;
-  border-radius: 4px;
-  margin-left: 6px;
+  color: #1E293B;
 }
 
 .pay-card-left p {
-  font-size: 11px;
+  font-size: 10px;
   color: #64748B;
-  margin: 3px 0 0 0;
+  margin: 2px 0 0 0;
 }
 
 .pay-icon-tag {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 800;
   background: #F1F5F9;
-  padding: 4px 8px;
-  border-radius: 6px;
+  padding: 3px 7px;
+  border-radius: 5px;
   color: #334155;
 }
 
@@ -798,39 +689,38 @@ body.glass-bg-body {
   background: rgba(7, 136, 102, 0.1);
   color: #045D49;
   border: 1px solid rgba(7, 136, 102, 0.25);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 800;
-  padding: 6px 12px;
-  border-radius: 8px;
+  padding: 5px 10px;
+  border-radius: 7px;
   cursor: pointer;
 }
 
 .coupon-input-glass-group {
   display: flex;
-  gap: 8px;
+  gap: 6px;
 }
 
 .coupon-input-glass-group input {
   flex: 1;
-  padding: 11px 14px;
-  border-radius: 12px;
+  padding: 9px 12px;
+  border-radius: 10px;
   border: 1.5px solid #CBD5E1;
-  font-size: 13px;
+  font-size: 11.5px;
   outline: none;
   background: #FFFFFF;
-  box-shadow: inset 0 2px 4px rgba(0,0,0,0.04);
 }
 
 .apply-coupon-btn-3d {
-  padding: 10px 18px;
-  font-size: 12.5px;
+  padding: 9px 15px;
+  font-size: 11.5px;
   font-weight: 800;
   background: #078866;
   color: #FFFFFF;
   border: none;
-  border-radius: 12px;
+  border-radius: 10px;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(7, 136, 102, 0.25);
+  box-shadow: 0 3px 10px rgba(7, 136, 102, 0.22);
 }
 
 .applied-coupon-3d-banner {
@@ -839,121 +729,332 @@ body.glass-bg-body {
   align-items: center;
   background: #ECFDF5;
   border: 1.5px solid #059669;
-  padding: 10px 14px;
-  border-radius: 12px;
-  margin-bottom: 10px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  margin-bottom: 8px;
+}
+
+.applied-coupon-3d-banner strong {
+  font-size: 11.5px;
+  color: #065F46;
+}
+
+.applied-coupon-3d-banner p {
+  font-size: 10px;
+  color: #047857;
+  margin: 0;
 }
 
 .remove-coupon-btn-3d {
   background: transparent;
   border: none;
   color: #DC2626;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 800;
   cursor: pointer;
 }
 
-/* Slide 4: Items & Complete Order Summary */
+/* =========================================================
+   3D GLASS PATIENT TEST CARDS & ACTION BUTTONS (COMPACT)
+   ========================================================= */
 .cart-items-vertical-list {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  margin-bottom: 12px;
+  margin-bottom: 4px;
 }
 
-.cart-item-card {
-  padding: 12px 14px;
+/* 3D Glass Patient Container Card */
+.patient-tests-group-card {
+  margin-bottom: 2px;
+  padding: 11px 12px;
+  border-radius: 15px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(246, 253, 250, 0.92));
+  border: 1.5px solid rgba(7, 136, 102, 0.3);
+  box-shadow: 0 8px 22px rgba(0, 48, 35, 0.05), 0 2px 5px rgba(7, 136, 102, 0.04), var(--glass-specular);
+  position: relative;
+  transition: all 0.28s ease;
+}
+
+.animate-3d-card {
+  animation: cardElevate 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+@keyframes cardElevate {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.patient-group-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: #ffffff;
-  border: 1px solid rgba(7, 136, 102, 0.18);
-  border-radius: 14px;
-  box-shadow: 0 4px 14px rgba(7, 136, 102, 0.05);
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(7, 136, 102, 0.12);
 }
 
-/* Dual Add-on Buttons Grid (Tests & Packages) */
-.add-more-actions-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-top: 10px;
-}
-
-.add-action-btn {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 11px 13px;
-  border-radius: 12px;
+.patient-group-name {
   font-size: 12px;
+  font-weight: 900;
+  color: #045D49;
+  letter-spacing: -0.2px;
+}
+
+.patient-tests-badge {
+  font-size: 9.5px;
   font-weight: 800;
-  cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
-  background: transparent;
-  outline: none;
+  color: #078866;
+  background: linear-gradient(135deg, #ECFDF5, #D1FAE5);
+  padding: 2.5px 7px;
+  border-radius: 6px;
+  border: 1px solid rgba(7, 136, 102, 0.25);
+  box-shadow: 0 1px 4px rgba(7, 136, 102, 0.08);
 }
 
-.add-action-btn:active {
-  transform: scale(0.97);
+.patient-empty-tests-box {
+  padding: 12px 10px;
+  text-align: center;
+  background: rgba(248, 250, 252, 0.8);
+  border-radius: 11px;
+  margin-bottom: 8px;
+  border: 1.5px dashed #CBD5E1;
 }
 
-/* Individual Tests Button Theme (Emerald Green) */
-.add-action-btn.test-btn {
-  border: 1.5px dashed var(--primary-green);
-  background: rgba(7, 136, 102, 0.06);
-  color: var(--dark-green);
+.patient-empty-tests-box p {
+  font-size: 10.5px;
+  color: #64748B;
+  font-weight: 600;
+  margin: 0 0 3px 0;
 }
 
-.add-action-btn.test-btn:active {
-  background: rgba(7, 136, 102, 0.14);
+.patient-empty-tests-box span {
+  font-size: 10px;
+  font-weight: 800;
+  color: #078866;
 }
 
-/* Health Packages Button Theme (Blue Accent) */
-.add-action-btn.pkg-btn {
-  border: 1.5px dashed #0284C7;
-  background: rgba(2, 132, 199, 0.06);
+/* Individual Test Card inside Patient Group */
+.glass-panel-3d-item {
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  background: #FFFFFF;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  border-radius: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02), inset 0 1px 1px #FFFFFF;
+  transition: all 0.2s ease;
+}
+
+.glass-panel-3d-item:hover {
+  border-color: rgba(7, 136, 102, 0.35);
+  box-shadow: 0 4px 10px rgba(7, 136, 102, 0.05);
+}
+
+.item-main-details {
+  flex: 1;
+}
+
+.item-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 2px;
+}
+
+.type-badge {
+  font-size: 8px;
+  font-weight: 800;
+  padding: 1.5px 5px;
+  border-radius: 4px;
+  letter-spacing: 0.2px;
+}
+
+.type-badge.package-type {
+  background: #FFE4E6;
+  color: #E11D48;
+}
+
+.type-badge.test-type {
+  background: #E0F2FE;
   color: #0369A1;
 }
 
-.add-action-btn.pkg-btn:active {
-  background: rgba(2, 132, 199, 0.14);
+.item-code-tag {
+  font-size: 8.5px;
+  font-weight: 700;
+  color: #64748B;
 }
 
-.add-action-btn .btn-arrow {
-  font-size: 15px;
-  font-weight: 900;
-  opacity: 0.7;
+.paid-tag {
+  font-size: 8px;
+  font-weight: 800;
+  background: #D1FAE5;
+  color: #065F46;
+  padding: 1px 4px;
+  border-radius: 3px;
 }
 
-@media (max-width: 340px) {
-  .add-more-actions-grid {
-    grid-template-columns: 1fr;
-  }
+.item-title {
+  font-size: 11.5px;
+  font-weight: 800;
+  color: #1E293B;
+  margin: 0 0 2px 0;
+  line-height: 1.25;
 }
 
+.item-price-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.item-mrp-strike {
+  text-decoration: line-through;
+  color: #94A3B8;
+  font-size: 9.5px;
+}
+
+.item-offer-price {
+  color: #078866;
+}
+
+.item-paid-note {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: #536E66;
+}
+
+.item-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.patient-reassign-select {
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 3px 5px;
+  border-radius: 7px;
+  border: 1.5px solid #CBD5E1;
+  background: #FFFFFF;
+  color: #334155;
+  outline: none;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+}
+
+.item-paid-badge {
+  font-size: 9px;
+  font-weight: 800;
+  color: #047857;
+  background: #ECFDF5;
+  padding: 2.5px 6px;
+  border-radius: 5px;
+  border: 1px solid #A7F3D0;
+}
+
+.item-delete-btn {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  width: 25px;
+  height: 25px;
+  border-radius: 7px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11.5px;
+  transition: all 0.2s ease;
+}
+
+.item-delete-btn:active {
+  transform: scale(0.9);
+  background: rgba(239, 68, 68, 0.2);
+}
+
+/* 3D Glass Per-Patient Action Buttons */
+.patient-card-actions-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(7, 136, 102, 0.25);
+}
+
+.patient-action-btn {
+  flex: 1;
+  padding: 7px 10px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  letter-spacing: -0.1px;
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+  position: relative;
+  outline: none;
+}
+
+.patient-action-btn:active {
+  transform: translateY(1px) scale(0.97);
+}
+
+.patient-action-btn.add-test-sub-btn {
+  background: linear-gradient(135deg, rgba(236, 253, 245, 0.95), rgba(209, 250, 229, 0.85));
+  border: 1.5px solid #078866;
+  color: #045D49;
+  box-shadow: 0 3px 8px rgba(7, 136, 102, 0.1), inset 0 1px 1px #FFFFFF;
+}
+
+.patient-action-btn.add-test-sub-btn:hover {
+  box-shadow: 0 5px 11px rgba(7, 136, 102, 0.18), inset 0 1px 1px #FFFFFF;
+}
+
+.patient-action-btn.add-pkg-sub-btn {
+  background: linear-gradient(135deg, rgba(253, 242, 248, 0.95), rgba(255, 228, 230, 0.85));
+  border: 1.5px solid #E11D48;
+  color: #BE123C;
+  box-shadow: 0 3px 8px rgba(225, 29, 72, 0.1), inset 0 1px 1px #FFFFFF;
+}
+
+.patient-action-btn.add-pkg-sub-btn:hover {
+  box-shadow: 0 5px 11px rgba(225, 29, 72, 0.18), inset 0 1px 1px #FFFFFF;
+}
+
+/* =========================================================
+   ORDER SUMMARY CARD (COMPACT)
+   ========================================================= */
 .order-summary-3d-card {
-  background: linear-gradient(135deg, rgba(255,255,255,0.95), rgba(240,253,250,0.85));
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(240, 253, 250, 0.88));
+  border: 1.5px solid #A7F3D0;
 }
 
 .summary-card-title {
-  font-size: 16px;
+  font-size: 13.5px;
   font-weight: 800;
   color: #0F172A;
-  margin: 0 0 14px 0;
+  margin: 0 0 10px 0;
 }
 
 .summary-breakdown-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 7px;
 }
 
 .summary-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 13px;
+  font-size: 11.5px;
 }
 
 .s-label {
@@ -973,8 +1074,8 @@ body.glass-bg-body {
 
 .highlight-savings {
   background: #F0FDF4;
-  padding: 6px 10px;
-  border-radius: 8px;
+  padding: 5px 8px;
+  border-radius: 7px;
 }
 
 .highlight-savings .s-label,
@@ -988,39 +1089,39 @@ body.glass-bg-body {
 }
 
 .summary-divider {
-  height: 1.5px;
+  height: 1.2px;
   background: #E2E8F0;
-  margin: 4px 0;
+  margin: 3px 0;
 }
 
 .final-total-row {
-  padding-top: 4px;
+  padding-top: 3px;
 }
 
 .grand-label {
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 900;
   color: #0F172A;
 }
 
 .grand-sub {
-  font-size: 10px;
+  font-size: 9px;
   color: #64748B;
-  margin: 2px 0 0 0;
+  margin: 1px 0 0 0;
 }
 
 .grand-val {
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 900;
   color: #078866;
 }
 
 .safety-guarantee-note-3d {
   text-align: center;
-  font-size: 10px;
+  font-size: 9.5px;
   color: var(--text-muted);
-  padding: 10px 8px 16px;
-  line-height: 1.4;
+  padding: 8px 6px 12px;
+  line-height: 1.35;
 }
 
 /* =========================================================
@@ -1028,20 +1129,20 @@ body.glass-bg-body {
    ========================================================= */
 .cart-floating-bar-3d {
   position: fixed;
-  bottom: calc(62px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(58px + env(safe-area-inset-bottom, 0px));
   left: 0;
   right: 0;
   max-width: 680px;
   margin: 0 auto;
-  padding: 10px 14px 12px 14px;
+  padding: 8px 12px 10px 12px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   z-index: 850;
-  border-radius: 22px 22px 0 0;
+  border-radius: 18px 18px 0 0;
   border-bottom: 1px solid rgba(229, 231, 235, 0.8);
-  box-shadow: 0 -8px 24px rgba(0, 48, 35, 0.08) !important;
+  box-shadow: 0 -6px 20px rgba(0, 48, 35, 0.08) !important;
 }
 
 .floating-left-btn-wrap {
@@ -1051,15 +1152,9 @@ body.glass-bg-body {
   align-items: center;
 }
 
-.floating-left-btn-wrap:has(#bar-back-btn[style*="none"]),
-.floating-left-btn-wrap:has(#bar-back-btn.hidden),
-.floating-left-btn-wrap:empty {
-  display: none !important;
-}
-
 .floating-left-btn-wrap .bar-nav-btn {
-  min-width: 82px;
-  padding: 11px 14px;
+  min-width: 72px;
+  padding: 9px 11px;
 }
 
 .floating-price-center {
@@ -1070,40 +1165,39 @@ body.glass-bg-body {
   justify-content: center;
   background: linear-gradient(135deg, rgba(236, 253, 245, 0.98), rgba(209, 250, 229, 0.9));
   border: 1.5px solid #078866;
-  border-radius: 14px;
-  padding: 5px 12px;
+  border-radius: 11px;
+  padding: 4px 9px;
   margin: 0;
-  box-shadow: 0 3px 10px rgba(7, 136, 102, 0.12);
+  box-shadow: 0 2px 7px rgba(7, 136, 102, 0.1);
 }
 
 .floating-price-center .f-title {
-  font-size: 9.5px;
+  font-size: 8.5px;
   font-weight: 800;
   color: #045D49;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.4px;
 }
 
 .floating-price-center .highlight-3d-text {
-  font-size: 18px;
+  font-size: 15.5px;
   font-weight: 900;
   color: #078866;
   line-height: 1.15;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .floating-right-btn-wrap {
   flex: 1.2 1 auto;
-  min-width: 145px;
+  min-width: 135px;
   display: flex;
   justify-content: flex-end;
 }
 
 .bar-nav-btn {
-  padding: 12px 16px;
-  font-size: 13px;
+  padding: 10px 13px;
+  font-size: 11.5px;
   font-weight: 800;
-  border-radius: 14px;
+  border-radius: 11px;
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.2s ease;
@@ -1118,12 +1212,12 @@ body.glass-bg-body {
   background: linear-gradient(135deg, #078866, #045D49);
   color: #FFFFFF;
   border: none;
-  box-shadow: 0 4px 14px rgba(7, 136, 102, 0.28);
+  box-shadow: 0 3px 12px rgba(7, 136, 102, 0.24);
 }
 
 .primary-glow-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(7, 136, 102, 0.38);
+  box-shadow: 0 5px 15px rgba(7, 136, 102, 0.32);
 }
 
 .primary-glow-btn:disabled {
@@ -1137,7 +1231,7 @@ body.glass-bg-body {
   background: rgba(255, 255, 255, 0.95);
   color: #334155;
   border: 1.5px solid #CBD5E1;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.04);
 }
 
 .exit-bar-btn {
@@ -1148,7 +1242,7 @@ body.glass-bg-body {
 }
 
 /* =========================================================
-   HIGH-END 3D GLASSMORPHISM UPI PAYMENT MODAL
+   MODALS WITH 3D GLASSMORPHISM (COMPACT)
    ========================================================= */
 .sia-modal-overlay {
   display: none;
@@ -1159,38 +1253,38 @@ body.glass-bg-body {
   bottom: 0;
   z-index: 2500;
   background: rgba(3, 35, 28, 0.72);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   justify-content: center;
   align-items: center;
-  padding: 16px;
+  padding: 14px;
 }
 
 .glass-modal-3d {
   width: 100%;
-  max-width: 440px;
-  max-height: 90vh;
+  max-width: 420px;
+  max-height: 88vh;
   background: #FFFFFF;
-  border-radius: 24px;
+  border-radius: 20px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 28px 70px rgba(0, 35, 25, 0.35);
+  box-shadow: 0 24px 60px rgba(0, 35, 25, 0.32);
   border: 1.5px solid rgba(7, 136, 102, 0.25);
 }
 
 .upi-3d-card {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(240, 253, 249, 0.92)) !important;
   border: 1.5px solid rgba(16, 185, 129, 0.4) !important;
-  box-shadow: 0 30px 80px rgba(0, 48, 35, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.9) inset !important;
+  box-shadow: 0 24px 60px rgba(0, 48, 35, 0.3), var(--glass-specular) !important;
 }
 
 .animate-3d-pop {
-  animation: popIn3D 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  animation: popIn3D 0.32s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
 }
 
 @keyframes popIn3D {
-  0% { opacity: 0; transform: translateY(24px) scale(0.94); }
+  0% { opacity: 0; transform: translateY(20px) scale(0.95); }
   100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 
@@ -1198,24 +1292,24 @@ body.glass-bg-body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 14px 18px;
+  padding: 11px 15px;
   background: linear-gradient(135deg, #045D49, #078866) !important;
   color: #FFFFFF !important;
 }
 
 .upi-glow-header {
   background: linear-gradient(135deg, #033F33, #078866) !important;
-  box-shadow: 0 4px 18px rgba(7, 136, 102, 0.3);
+  box-shadow: 0 3px 14px rgba(7, 136, 102, 0.25);
 }
 
 .modal-title-wrap {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
 }
 
 .modal-title-wrap h3 {
-  font-size: 14.5px;
+  font-size: 13px;
   font-weight: 800;
   color: #FFFFFF !important;
   margin: 0;
@@ -1225,10 +1319,10 @@ body.glass-bg-body {
   background: rgba(255, 255, 255, 0.25);
   border: none;
   color: #FFFFFF;
-  width: 30px;
-  height: 30px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
-  font-size: 14px;
+  font-size: 12px;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -1236,11 +1330,11 @@ body.glass-bg-body {
 }
 
 .sia-modal-body {
-  padding: 18px 20px;
+  padding: 15px 16px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 11px;
 }
 
 .upi-body-center {
@@ -1248,12 +1342,11 @@ body.glass-bg-body {
   text-align: center;
 }
 
-/* 3D Glowing Animated Ring */
 .upi-ring-glow-wrapper {
   position: relative;
-  width: 76px;
-  height: 76px;
-  margin: 4px auto 10px;
+  width: 66px;
+  height: 66px;
+  margin: 3px auto 8px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1270,18 +1363,18 @@ body.glass-bg-body {
 
 @keyframes upiPulseGlow {
   0%, 100% { transform: scale(1); opacity: 0.6; }
-  50% { transform: scale(1.22); opacity: 1; }
+  50% { transform: scale(1.2); opacity: 1; }
 }
 
 .upi-spinner-3d {
-  width: 58px;
-  height: 58px;
+  width: 50px;
+  height: 50px;
   border-radius: 50%;
-  border: 3.5px solid rgba(7, 136, 102, 0.15);
+  border: 3px solid rgba(7, 136, 102, 0.15);
   border-top-color: #078866;
   border-right-color: #10B981;
   animation: upiSpin3D 0.9s linear infinite;
-  box-shadow: 0 4px 14px rgba(7, 136, 102, 0.2);
+  box-shadow: 0 3px 10px rgba(7, 136, 102, 0.18);
 }
 
 @keyframes upiSpin3D {
@@ -1291,42 +1384,41 @@ body.glass-bg-body {
 
 .upi-center-brand-icon {
   position: absolute;
-  font-size: 22px;
+  font-size: 19px;
 }
 
 .upi-title-text {
-  font-size: 17px;
+  font-size: 15px;
   font-weight: 900;
   color: #045D49;
   margin: 0;
 }
 
 .upi-sub-message {
-  font-size: 12px;
+  font-size: 11px;
   color: #475569;
-  line-height: 1.4;
+  line-height: 1.35;
   margin: 0;
-  max-width: 330px;
+  max-width: 300px;
 }
 
-/* 3D Glass Order Box */
 .upi-order-preview-3d-box {
   width: 100%;
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(236, 253, 245, 0.95));
   border: 1.5px solid #A7F3D0;
-  border-radius: 14px;
-  padding: 12px 16px;
+  border-radius: 12px;
+  padding: 10px 13px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  box-shadow: 0 4px 14px rgba(7, 136, 102, 0.08);
+  gap: 6px;
+  box-shadow: 0 3px 10px rgba(7, 136, 102, 0.06);
 }
 
 .preview-line {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 12.5px;
+  font-size: 11.5px;
 }
 
 .preview-line span {
@@ -1341,124 +1433,122 @@ body.glass-bg-body {
 
 .green-highlight-glow {
   color: #078866 !important;
-  font-size: 16px !important;
+  font-size: 14.5px !important;
   font-weight: 900 !important;
 }
 
 .upi-instruction-card-3d {
   background: #F8FAFC;
   border: 1px solid #E2E8F0;
-  border-radius: 12px;
-  padding: 10px 14px;
+  border-radius: 10px;
+  padding: 8px 11px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
   width: 100%;
 }
 
 .lock-pill-badge {
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 800;
   color: #065F46;
   background: #D1FAE5;
-  padding: 2px 8px;
-  border-radius: 6px;
+  padding: 2px 7px;
+  border-radius: 5px;
   align-self: center;
 }
 
 .upi-instruction-card-3d p {
-  font-size: 11px;
+  font-size: 10px;
   color: #64748B;
   margin: 0;
-  line-height: 1.35;
+  line-height: 1.3;
 }
 
-/* Available Coupons Modal 3D List */
 .coupons-modal-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 4px 0;
+  gap: 10px;
+  padding: 3px 0;
 }
 
 .coupon-item-card {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 14px 16px;
+  padding: 11px 13px;
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(240, 253, 249, 0.85));
   border: 1.5px dashed #078866;
-  border-radius: 14px;
-  box-shadow: 0 4px 14px rgba(7, 136, 102, 0.08);
+  border-radius: 12px;
+  box-shadow: 0 3px 10px rgba(7, 136, 102, 0.06);
 }
 
 .coupon-meta h5 {
-  font-size: 14.5px;
+  font-size: 13px;
   font-weight: 900;
   color: #045D49;
-  margin: 0 0 4px 0;
+  margin: 0 0 3px 0;
 }
 
 .coupon-meta p {
-  font-size: 11px;
+  font-size: 10px;
   color: #475569;
-  margin: 0 0 6px 0;
-  line-height: 1.35;
+  margin: 0 0 5px 0;
+  line-height: 1.3;
 }
 
 .coupon-expiry {
-  font-size: 10.5px;
+  font-size: 9.5px;
   font-weight: 800;
   color: #059669;
 }
 
 .apply-modal-coupon-btn {
-  padding: 9px 18px;
-  font-size: 12px;
+  padding: 7px 14px;
+  font-size: 11px;
   font-weight: 800;
   background: linear-gradient(135deg, #078866, #045D49);
   color: #FFFFFF;
   border: none;
-  border-radius: 10px;
+  border-radius: 9px;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(7, 136, 102, 0.25);
+  box-shadow: 0 3px 10px rgba(7, 136, 102, 0.2);
 }
 
-/* Patient Verification Checkpoint Modal Card */
 .patient-verify-card-3d {
   background: #F8FAFC;
   border: 1.5px solid #E2E8F0;
-  border-radius: 14px;
-  padding: 14px;
-  margin: 6px 0;
+  border-radius: 12px;
+  padding: 11px;
+  margin: 4px 0;
 }
 
 .patient-verify-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-bottom: 10px;
+  padding-bottom: 8px;
   border-bottom: 1px solid #E5E7EB;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .verified-check-pill {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 800;
   color: #065F46;
   background: #D1FAE5;
-  padding: 4px 10px;
-  border-radius: 20px;
+  padding: 3px 8px;
+  border-radius: 15px;
 }
 
 .verify-details-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  gap: 8px;
   background: #FFFFFF;
   border: 1px solid #E5E7EB;
-  padding: 10px 12px;
-  border-radius: 10px;
+  padding: 8px 10px;
+  border-radius: 9px;
 }
 
 .verify-item {
@@ -1467,21 +1557,21 @@ body.glass-bg-body {
 }
 
 .verify-lbl {
-  font-size: 9.5px;
+  font-size: 8.5px;
   font-weight: 700;
   color: #6B7280;
   text-transform: uppercase;
 }
 
 .verify-val {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 800;
   color: #111827;
 }
 
 .green-phone {
   color: #078866 !important;
-  font-size: 13px !important;
+  font-size: 11.5px !important;
 }
 
 .verify-pay-summary-3d {
@@ -1490,27 +1580,27 @@ body.glass-bg-body {
   align-items: center;
   background: #ECFDF5;
   border: 1px dashed #078866;
-  border-radius: 10px;
-  padding: 10px 14px;
-  font-size: 12.5px;
+  border-radius: 9px;
+  padding: 8px 11px;
+  font-size: 11.5px;
   font-weight: 800;
   color: #045D49;
-  margin: 6px 0;
+  margin: 4px 0;
 }
 
 .verify-actions-stack {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-top: 6px;
+  gap: 8px;
+  margin-top: 4px;
 }
 
 .modal-action-btn {
   width: 100%;
-  padding: 12px;
-  font-size: 13px;
+  padding: 10px;
+  font-size: 11.5px;
   font-weight: 800;
-  border-radius: 10px;
+  border-radius: 9px;
   border: none;
   cursor: pointer;
   text-align: center;
@@ -1519,40 +1609,38 @@ body.glass-bg-body {
 
 .modal-secondary-btn {
   width: 100%;
-  padding: 11px;
-  font-size: 12.5px;
+  padding: 9px;
+  font-size: 11px;
   font-weight: 700;
-  border-radius: 10px;
+  border-radius: 9px;
   border: 1px solid #D1D5DB;
   background: #F9FAFB;
   color: var(--text-muted);
   cursor: pointer;
 }
 
-/* Edit Address Form Fields */
 .form-field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
 }
 
 .form-field label {
-  font-size: 11.5px;
+  font-size: 10.5px;
   font-weight: 800;
   color: #045D49;
 }
 
 .form-field input {
   width: 100%;
-  padding: 12px 14px;
-  border-radius: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
   border: 1.5px solid #CBD5E1;
-  font-size: 13px;
+  font-size: 11.5px;
   font-weight: 600;
   color: #1E293B;
   outline: none;
   background: #FFFFFF;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.03);
 }
 
 .location-header-row {
@@ -1565,9 +1653,9 @@ body.glass-bg-body {
   background: #ECFDF5;
   color: #045D49;
   border: 1.5px solid #A7F3D0;
-  padding: 5px 10px;
-  border-radius: 8px;
-  font-size: 10.5px;
+  padding: 4px 8px;
+  border-radius: 7px;
+  font-size: 9.5px;
   font-weight: 800;
   cursor: pointer;
 }
@@ -1578,15 +1666,15 @@ body.glass-bg-body {
   bottom: 0;
   left: 0;
   right: 0;
-  height: 62px;
+  height: 58px;
   z-index: 900;
   display: flex;
   justify-content: space-around;
   align-items: center;
-  padding: 4px 4px calc(4px + env(safe-area-inset-bottom, 0px)) 4px;
+  padding: 3px 4px calc(3px + env(safe-area-inset-bottom, 0px)) 4px;
   background: #FFFFFF;
   border-top: 1px solid #E5E7EB;
-  box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 -3px 12px rgba(0, 0, 0, 0.04);
 }
 
 .nav-item {
@@ -1594,10 +1682,10 @@ body.glass-bg-body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
+  gap: 2px;
   text-decoration: none;
   color: #6B7280;
-  font-size: 10.5px;
+  font-size: 9.5px;
   font-weight: 600;
   flex: 1;
   text-align: center;
@@ -1605,7 +1693,7 @@ body.glass-bg-body {
 }
 
 .nav-icon {
-  font-size: 19px;
+  font-size: 17px;
   line-height: 1;
 }
 
@@ -1615,14 +1703,14 @@ body.glass-bg-body {
 
 .cart-badge {
   position: absolute;
-  top: -4px;
-  right: calc(50% - 15px);
+  top: -3px;
+  right: calc(50% - 14px);
   background: var(--primary-pink);
   color: #ffffff;
-  font-size: 9px;
+  font-size: 8.5px;
   font-weight: 800;
-  padding: 1px 5px;
-  border-radius: 10px;
-  min-width: 16px;
+  padding: 1px 4.5px;
+  border-radius: 8px;
+  min-width: 15px;
   text-align: center;
 }
