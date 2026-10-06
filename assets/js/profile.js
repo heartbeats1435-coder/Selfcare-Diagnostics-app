@@ -1,11 +1,12 @@
 /* file: assets/js/profile.js */
 /**
- * Selfcare Diagnostics - My Account Controller v6.1.0
+ * Selfcare Diagnostics - My Account Controller v6.2.0 (Clean Production Edition)
  * Features:
  * - Live Google Sheets Sync for both Profile and FamilyMembers table.
  * - Displays Member Cards: Name, Relation, Age, and Individual Mobile Number.
  * - Edit & Remove functionality per family/friend member with Google Sheets deletion.
  * - Dedicated Mobile mapping for Cart isolation.
+ * - Testing mock/demo buttons completely removed for production fidelity.
  */
 
 const ProfilePage = {
@@ -22,6 +23,14 @@ const ProfilePage = {
       await this.syncLiveCloudProfile();
     } catch (err) {
       console.error('ProfilePage init error:', err);
+    }
+  },
+
+  safeShowToast(message, type = 'info') {
+    if (typeof Utils !== 'undefined' && Utils.showToast) {
+      Utils.showToast(message, type);
+    } else {
+      alert(message);
     }
   },
 
@@ -246,7 +255,7 @@ const ProfilePage = {
     const location = document.getElementById('self-edit-location').value.trim();
 
     if (!name) {
-      Utils.showToast('Please enter your full name', 'error');
+      this.safeShowToast('Please enter your full name', 'error');
       return;
     }
 
@@ -296,7 +305,7 @@ const ProfilePage = {
 
     this.renderSelfProfile();
     this.toggleSelfEditMode(false);
-    Utils.showToast('Profile updated successfully!', 'success');
+    this.safeShowToast('Profile updated successfully!', 'success');
   },
 
   // 2. FAMILY MEMBERS: RENDER, SAVE & DELETE
@@ -445,12 +454,12 @@ const ProfilePage = {
     const location = document.getElementById('family-location-input').value.trim();
 
     if (!name) {
-      Utils.showToast('Please enter member name', 'error');
+      this.safeShowToast('Please enter member name', 'error');
       return;
     }
 
     if (!mobile || mobile.length !== 10) {
-      Utils.showToast('Please enter a valid 10-digit mobile number for this member', 'error');
+      this.safeShowToast('Please enter a valid 10-digit mobile number for this member', 'error');
       document.getElementById('family-mobile-input').focus();
       return;
     }
@@ -501,7 +510,7 @@ const ProfilePage = {
 
     this.renderFamilyCards();
     this.closeMemberForm();
-    Utils.showToast(`${name} details saved & synced to Google Sheets!`, 'success');
+    this.safeShowToast(`${name} details saved & synced to Google Sheets!`, 'success');
   },
 
   async deleteFamilyMember(id) {
@@ -536,7 +545,7 @@ const ProfilePage = {
     }
 
     this.renderFamilyCards();
-    Utils.showToast(`${memberName} removed.`, 'info');
+    this.safeShowToast(`${memberName} removed.`, 'info');
   },
 
   // 3. ADDRESSES
@@ -572,7 +581,7 @@ const ProfilePage = {
     const location = document.getElementById('addr-loc-input').value.trim();
 
     if (!line) {
-      Utils.showToast('Please enter address line', 'error');
+      this.safeShowToast('Please enter address line', 'error');
       return;
     }
 
@@ -590,14 +599,14 @@ const ProfilePage = {
     document.getElementById('addr-line-input').value = '';
     document.getElementById('addr-pincode-input').value = '';
     document.getElementById('addr-loc-input').value = '';
-    Utils.showToast('Address saved successfully!', 'success');
+    this.safeShowToast('Address saved successfully!', 'success');
   },
 
   deleteAddress(id) {
     this.addresses = this.addresses.filter(a => a.id !== id);
     localStorage.setItem('selfcare_saved_addresses', JSON.stringify(this.addresses));
     this.renderAddressesList();
-    Utils.showToast('Address removed', 'info');
+    this.safeShowToast('Address removed', 'info');
   },
 
   // 4. REFER AND EARN
@@ -641,7 +650,7 @@ const ProfilePage = {
     localStorage.setItem('selfcare_applied_coupon', couponCode);
     localStorage.setItem('selfcare_coupon_discount_percent', '10');
 
-    Utils.showToast(`Coupon "${couponCode}" applied! (10% Discount)`, 'success');
+    this.safeShowToast(`Coupon "${couponCode}" applied! (10% Discount)`, 'success');
     this.closeModal('modal-refer-earn');
 
     setTimeout(() => {
@@ -649,36 +658,10 @@ const ProfilePage = {
     }, 700);
   },
 
-  simulateFriendBookingDemo(friendName = 'Karthika') {
-    const cleanName = friendName.toLowerCase();
-    const newCouponCode = `Selfcare10%${cleanName}`;
-
-    const exists = this.referralCoupons.some(c => c.code.toLowerCase() === newCouponCode.toLowerCase());
-    if (exists) {
-      Utils.showToast(`Coupon "${newCouponCode}" is already in your rewards!`, 'info');
-      return;
-    }
-
-    const newCoupon = {
-      code: newCouponCode,
-      friendName: friendName,
-      discountPercent: 10,
-      status: 'Active',
-      unlockedAt: new Date().toISOString()
-    };
-
-    this.referralCoupons.unshift(newCoupon);
-    localStorage.setItem('selfcare_referral_coupons', JSON.stringify(this.referralCoupons));
-    
-    this.renderEarnedCouponsList();
-    this.checkReferralBadges();
-    Utils.showToast(`🎉 Success! ${friendName} booked a test. You earned "${newCouponCode}"!`, 'success');
-  },
-
   shareReferralWhatsApp() {
     const code = document.getElementById('user-refer-code').textContent;
     const msg = `Book certified lab tests at doorstep with Selfcare Diagnostics! Use my referral code *${code}* to book your test: https://selfcarediagnostics.com`;
-    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+    window.open(`https://wa.me/917010174890?text=${encodeURIComponent(msg)}`, '_blank');
   },
 
   // 5. GENERAL INFO, LOGOUT & SUPPORT
@@ -703,11 +686,11 @@ const ProfilePage = {
 
   detectGpsLocation(targetInputId) {
     if (!navigator.geolocation) {
-      Utils.showToast('GPS Geolocation not supported on this browser', 'error');
+      this.safeShowToast('GPS Geolocation not supported on this browser', 'error');
       return;
     }
 
-    Utils.showToast('Detecting current GPS location...', 'info');
+    this.safeShowToast('Detecting current GPS location...', 'info');
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
@@ -717,11 +700,11 @@ const ProfilePage = {
         
         const input = document.getElementById(targetInputId);
         if (input) input.value = mapUrl;
-        Utils.showToast('Location detected successfully!', 'success');
+        this.safeShowToast('Location detected successfully!', 'success');
       },
       (err) => {
         console.warn('Geolocation error:', err);
-        Utils.showToast('Could not fetch location. Please turn on GPS.', 'error');
+        this.safeShowToast('Could not fetch location. Please turn on GPS.', 'error');
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );

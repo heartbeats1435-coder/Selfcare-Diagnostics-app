@@ -1,12 +1,13 @@
 /* file: assets/js/reports.js */
 /**
- * Selfcare Diagnostics - Real Health Records Engine v4.0.0
+ * Selfcare Diagnostics - Real Health Records Engine v5.0.0
  * Features:
- * - Live Google Sheets Backend Sync via Api.getBookingsByPatient.
- * - Multi-tenant Family Vault Awareness (selfcare_family_${mobile}).
- * - Compares Last 2 Real Checkups dynamically, provides diet/lifestyle advice,
- *   and refers specialist doctors without prescribing medicines.
- * - Strictly Zero Fake Mock Data.
+ * 1. STRICT STAGE 5 FILTER: Reports appear in the Reports tab ONLY when 
+ *    the booking reaches "Certified NABL Report Ready" (Stage 5 / Completed / Report Ready).
+ * 2. ZERO DUMMY/MOCK DATA: Strictly blocks premature/fake medical parameters when sample is not tested.
+ * 3. Multi-tenant Family Vault Awareness (selfcare_family_${mobile}).
+ * 4. Automatic clean empty state when no verified reports exist for the selected patient.
+ * 5. Live Google Sheets Backend Sync via Api.getBookingsByPatient.
  */
 
 const ReportsPage = {
@@ -14,14 +15,56 @@ const ReportsPage = {
   selectedPatientIndex: 0,
 
   async init() {
-    this.loadRealProfilesAndReports();
-    this.renderPatientChips();
-    this.evaluatePatientRecords();
-    await this.syncLiveCloudReports();
+    try {
+      this.loadRealProfilesAndReports();
+      this.renderPatientChips();
+      this.evaluatePatientRecords();
+      await this.syncLiveCloudReports();
+    } catch (err) {
+      console.error('[Reports] Init error:', err);
+    }
+  },
+
+  safeEscape(str) {
+    if (typeof Utils !== 'undefined' && Utils.escapeHtml) {
+      return Utils.escapeHtml(str);
+    }
+    return String(str || '').replace(/[&<>"']/g, m => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+    }[m]));
+  },
+
+  safeFormatCurrency(amt) {
+    if (typeof Utils !== 'undefined' && Utils.formatCurrency) {
+      return Utils.formatCurrency(amt);
+    }
+    return '₹' + Math.round(Number(amt) || 0).toLocaleString('en-IN');
   },
 
   /**
-   * Reads genuine user profiles from localStorage & user vault.
+   * Helper: Determines if a booking has ACTUALLY reached Certified NABL Report Ready status
+   */
+  isReportCertifiedReady(booking) {
+    if (!booking) return false;
+
+    const stage = Number(booking.currentStage || 0);
+    const bStatus = String(booking.bookingStatus || '').toUpperCase();
+    const rStatus = String(booking.reportStatus || '').toUpperCase();
+    const hasReportUrl = Boolean(booking.reportUrl && String(booking.reportUrl).trim() !== '');
+
+    // Strictly check if report is ready / completed / published by lab
+    return (
+      stage === 5 ||
+      bStatus === 'COMPLETED' ||
+      bStatus.includes('REPORT_READY') ||
+      rStatus === 'REPORT READY' ||
+      rStatus.includes('READY') ||
+      hasReportUrl
+    );
+  },
+
+  /**
+   * Reads genuine user profiles and ONLY certified completed lab reports
    */
   loadRealProfilesAndReports() {
     let selfName = 'Customer (Self)';
@@ -45,10 +88,14 @@ const ReportsPage = {
       } catch (e) {}
     }
 
-    // 1. Initialize real customer
+    if (!currentMobile) {
+      currentMobile = localStorage.getItem('selfcare_active_user') || '';
+    }
+
+    // 1. Initialize primary real customer
     const realPatients = [
       {
-        id: 'patient_self',
+        id: 'self',
         name: selfName,
         relation: 'Self',
         gender: selfGender,
@@ -56,7 +103,7 @@ const ReportsPage = {
       }
     ];
 
-    // 2. Read true family members from dedicated vault or general storage
+    // 2. Read real family members from storage
     try {
       let famStored = null;
       if (currentMobile) {
@@ -72,7 +119,7 @@ const ReportsPage = {
           famList.forEach((fm, idx) => {
             if (fm && fm.name) {
               realPatients.push({
-                id: fm.id || `fam_${idx}_${fm.name.replace(/\s+/g, '_')}`,
+                id: fm.id || `fam_${idx}`,
                 name: fm.name,
                 relation: fm.relation || 'Family',
                 gender: fm.gender || 'Not Specified',
@@ -84,7 +131,7 @@ const ReportsPage = {
       }
     } catch (e) {}
 
-    // 3. Read true bookings / completed reports from storage
+    // 3. Read true bookings from storage
     let allStoredBookings = [];
     try {
       const b1 = localStorage.getItem('selfcare_recent_bookings');
@@ -103,14 +150,26 @@ const ReportsPage = {
 
     const uniqueBookings = Array.from(uniqueBookingsMap.values());
 
-    // 4. Attach verified diagnostic reports to their respective patient
+    // 4. Attach reports ONLY IF the booking has reached Certified NABL Report Ready
     uniqueBookings.forEach(booking => {
+      // 🛑 CRITICAL GUARD: If the test is in progress (Stage 1, 2, 3, 4), DO NOT show in Reports page!
+      if (!this.isReportCertifiedReady(booking)) {
+        return;
+      }
+
       const pName = (booking.patientName || selfName).trim().toLowerCase();
-      
-      let targetPatient = realPatients.find(p => p.name.trim().toLowerCase() === pName);
+      const pId = String(booking.patientId || '').trim().toLowerCase();
+      const isSelf = pId === 'self' || pId === 'patient_self' || pName.includes('self');
+
+      let targetPatient = realPatients.find(p => {
+        const targetId = String(p.id).toLowerCase();
+        const targetName = p.name.trim().toLowerCase();
+        return (pId && targetId === pId) || (targetName === pName) || (isSelf && targetId === 'self');
+      });
+
       if (!targetPatient && pName !== 'customer (self)') {
         targetPatient = {
-          id: `patient_${pName.replace(/\s+/g, '_')}`,
+          id: pId || `patient_${pName.replace(/\s+/g, '_')}`,
           name: booking.patientName || 'Member',
           relation: booking.relation || 'Member',
           gender: booking.gender || 'Not Specified',
@@ -129,14 +188,17 @@ const ReportsPage = {
           ? itemsList.map(i => i.name || i.TestName || i.PackageName).join(' + ')
           : 'Diagnostic Health Checkup';
 
-        const parameters = booking.parameters || this.extractParametersFromBooking(booking, itemsList);
+        // ONLY genuine clinical parameters attached by lab/admin. No fabricated fake numbers!
+        const parameters = Array.isArray(booking.parameters) ? booking.parameters : [];
 
         targetPatient.reports.push({
           id: `REP_${booking.bookingId}`,
           bookingId: booking.bookingId,
           title: reportTitle,
-          date: booking.collectionDate || booking.date || 'Recent Checkup',
+          date: booking.collectionDate || booking.date || 'Certified Checkup',
           timestamp: booking.timestamp || new Date(booking.collectionDate || Date.now()).getTime(),
+          reportUrl: booking.reportUrl || '',
+          doctor: booking.doctor || 'Chief Pathologist (NABL)',
           parameters: parameters
         });
       }
@@ -151,16 +213,22 @@ const ReportsPage = {
   },
 
   /**
-   * Live Cloud Sync: Fetches patient test bookings from Google Sheets
+   * Live Cloud Sync: Fetches real test bookings from Google Sheets
    */
   async syncLiveCloudReports() {
     if (!navigator.onLine || typeof Api === 'undefined') return;
     const user = (typeof Auth !== 'undefined' && Auth.getUser) ? Auth.getUser() : null;
-    const mobile = user ? (user.mobile || user.phone) : null;
+    const mobile = user ? (user.mobile || user.phone) : (localStorage.getItem('selfcare_active_user') || null);
     if (!mobile) return;
 
     try {
-      const liveBookings = await Api.getBookingsByPatient(mobile);
+      let liveBookings = null;
+      if (typeof Api.getBookingsByPatient === 'function') {
+        liveBookings = await Api.getBookingsByPatient(mobile);
+      } else if (typeof Api.request === 'function') {
+        liveBookings = await Api.request('getBookingsByPatient', { patientPhone: mobile }, false);
+      }
+
       if (Array.isArray(liveBookings) && liveBookings.length > 0) {
         let existing = [];
         try {
@@ -182,43 +250,6 @@ const ReportsPage = {
     }
   },
 
-  /**
-   * Helper: Extracts or derives clinical parameters from booked diagnostic items.
-   */
-  extractParametersFromBooking(booking, itemsList = []) {
-    if (Array.isArray(booking.parameters) && booking.parameters.length > 0) {
-      return booking.parameters;
-    }
-
-    const list = itemsList || booking.items || [];
-    const names = list.map(i => (i.name || i.TestName || i.PackageName || '').toLowerCase()).join(' ');
-
-    const derived = [];
-    if (names.includes('cbc') || names.includes('hemogram')) {
-      derived.push({ name: 'Hemoglobin (Hb)', value: '13.8', unit: 'g/dL', range: '13.0 - 17.0', status: 'normal' });
-      derived.push({ name: 'Total WBC (TLC)', value: '7,400', unit: 'cells/mcL', range: '4,000 - 11,000', status: 'normal' });
-      derived.push({ name: 'Platelet Count', value: '2.4', unit: 'Lakhs/mcL', range: '1.5 - 4.5', status: 'normal' });
-    }
-    if (names.includes('sugar') || names.includes('glucose') || names.includes('fbs')) {
-      derived.push({ name: 'Fasting Blood Sugar', value: '94', unit: 'mg/dL', range: '70 - 100', status: 'normal' });
-    }
-    if (names.includes('hba1c')) {
-      derived.push({ name: 'HbA1c (Glycated Hb)', value: '5.6', unit: '%', range: '< 5.7', status: 'normal' });
-    }
-    if (names.includes('lipid') || names.includes('cholesterol')) {
-      derived.push({ name: 'Total Cholesterol', value: '178', unit: 'mg/dL', range: '< 200', status: 'normal' });
-      derived.push({ name: 'Triglycerides', value: '135', unit: 'mg/dL', range: '< 150', status: 'normal' });
-    }
-    if (names.includes('thyroid') || names.includes('tsh')) {
-      derived.push({ name: 'TSH (Ultrasensitive)', value: '2.45', unit: 'uIU/mL', range: '0.4 - 4.2', status: 'normal' });
-    }
-    if (names.includes('kft') || names.includes('creatinine')) {
-      derived.push({ name: 'Serum Creatinine', value: '0.9', unit: 'mg/dL', range: '0.7 - 1.3', status: 'normal' });
-    }
-
-    return derived;
-  },
-
   renderPatientChips() {
     const container = document.getElementById('patient-chips-list');
     if (!container) return;
@@ -230,8 +261,8 @@ const ReportsPage = {
              onclick="ReportsPage.selectPatient(${idx})">
           <div class="chip-avatar">${initial}</div>
           <div class="chip-info">
-            <span class="chip-name">${Utils.escapeHtml(p.name)}</span>
-            <span class="chip-relation">${Utils.escapeHtml(p.relation)}</span>
+            <span class="chip-name">${this.safeEscape(p.name)}</span>
+            <span class="chip-relation">${this.safeEscape(p.relation)}</span>
           </div>
         </div>
       `;
@@ -245,20 +276,24 @@ const ReportsPage = {
   },
 
   /**
-   * Dynamic Health Records & Last 2 Checkups Comparison Engine
+   * Health Records Evaluation: Displays ONLY verified NABL completed reports
    */
   evaluatePatientRecords() {
     const patient = this.patientsList[this.selectedPatientIndex];
     const recordsView = document.getElementById('patient-records-view');
     const emptyState = document.getElementById('patient-empty-state');
 
+    // 🛑 If patient has no Stage 5 completed reports, show clean empty state!
     if (!patient || !patient.reports || patient.reports.length === 0) {
       if (recordsView) recordsView.style.display = 'none';
       if (emptyState) {
         emptyState.style.display = 'flex';
-        document.getElementById('empty-state-title').textContent = `No Reports for ${patient ? patient.name : 'Patient'}`;
-        document.getElementById('empty-state-desc').textContent = 
-          `There are no lab reports recorded for ${patient ? patient.name : 'this member'} yet. When you complete a booking, official NABL test results will appear here.`;
+        const titleEl = document.getElementById('empty-state-title');
+        const descEl = document.getElementById('empty-state-desc');
+        if (titleEl) titleEl.textContent = `No Certified Reports for ${patient ? patient.name : 'Patient'}`;
+        if (descEl) {
+          descEl.textContent = `There are no completed lab reports available for ${patient ? patient.name : 'this member'} yet. Once your sample collection and clinical testing reach "Certified NABL Report Ready", your verified medical records will appear here.`;
+        }
       }
       return;
     }
@@ -275,7 +310,9 @@ const ReportsPage = {
     const overallBadge = document.getElementById('overall-trend-badge');
     const paramsContainer = document.getElementById('comparison-parameters-container');
 
-    if (previousReport && comparisonSection) {
+    const hasRealParams = latestReport.parameters && latestReport.parameters.length > 0;
+
+    if (previousReport && comparisonSection && hasRealParams && previousReport.parameters && previousReport.parameters.length > 0) {
       comparisonSection.style.display = 'block';
       document.getElementById('patient-comparison-title').textContent = `${patient.name}'s Health Progress`;
       document.getElementById('comparison-date-range').textContent = 
@@ -284,38 +321,50 @@ const ReportsPage = {
       const comparisonResults = this.compareTwoReports(previousReport, latestReport);
       this.renderComparisonUI(patient.name, comparisonResults, bannerBox, overallBadge, paramsContainer);
     } else if (comparisonSection) {
-      document.getElementById('patient-comparison-title').textContent = `${patient.name}'s Latest Health Record`;
-      document.getElementById('comparison-date-range').textContent = `Recorded on ${latestReport.date}`;
+      document.getElementById('patient-comparison-title').textContent = `${patient.name}'s Verified Report`;
+      document.getElementById('comparison-date-range').textContent = `Certified on ${latestReport.date}`;
       if (overallBadge) {
-        overallBadge.textContent = '1 Checkup Recorded';
-        overallBadge.style.background = '#EFF6FF';
-        overallBadge.style.color = '#1D4ED8';
+        overallBadge.textContent = 'NABL Authenticated';
+        overallBadge.style.background = '#ECFDF5';
+        overallBadge.style.color = '#047857';
       }
 
       if (bannerBox) {
-        bannerBox.className = 'single-report-notice';
+        bannerBox.className = 'trend-alert-banner stable';
+        bannerBox.style.display = 'flex';
         bannerBox.innerHTML = `
-          ℹ️ <strong>First checkup successfully recorded for ${Utils.escapeHtml(patient.name)}.</strong>
-          <p style="margin-top: 4px; color: #1E40AF; font-size: 11px;">Complete your next routine follow-up checkup to automatically track improvements, HbA1c reductions, and vital progress.</p>
+          <div class="banner-icon">📄</div>
+          <div class="banner-content">
+            <strong>Certified Lab Report Ready for ${this.safeEscape(patient.name)}</strong>
+            <p>Your diagnostic evaluation is complete. Tap "Download PDF" below to view the official verified medical test results.</p>
+          </div>
         `;
       }
 
       if (paramsContainer) {
-        paramsContainer.innerHTML = (latestReport.parameters || []).map(p => `
-          <div class="comp-param-card">
-            <div class="param-title-row">
-              <strong>${Utils.escapeHtml(p.name)}</strong>
-              <span class="ref-val">Ref: ${p.range || 'Standard'} ${p.unit || ''}</span>
-            </div>
-            <div class="values-compare-flex">
-              <div class="val-col">
-                <span>Observed Value</span>
-                <strong style="color: ${p.status === 'high' ? '#DC2626' : '#047857'};">${p.value} ${p.unit || ''}</strong>
+        if (hasRealParams) {
+          paramsContainer.innerHTML = latestReport.parameters.map(p => `
+            <div class="comp-param-card">
+              <div class="param-title-row">
+                <strong>${this.safeEscape(p.name)}</strong>
+                <span class="ref-val">Ref: ${p.range || 'Standard'} ${p.unit || ''}</span>
               </div>
-              <span class="param-badge ${p.status || 'normal'}">${(p.status || 'NORMAL').toUpperCase()}</span>
+              <div class="values-compare-flex">
+                <div class="val-col">
+                  <span>Observed Value</span>
+                  <strong style="color: ${p.status === 'high' ? '#DC2626' : '#047857'};">${p.value} ${p.unit || ''}</strong>
+                </div>
+                <span class="param-badge ${p.status || 'normal'}">${(p.status || 'NORMAL').toUpperCase()}</span>
+              </div>
             </div>
-          </div>
-        `).join('');
+          `).join('');
+        } else {
+          paramsContainer.innerHTML = `
+            <div style="padding:14px; text-align:center; background:#F8FAFC; border:1px dashed #CBD5E1; border-radius:10px; font-size:12px; color:#475569;">
+              Official NABL laboratory verification complete. Full clinical parameter breakdown is available inside your signed PDF report.
+            </div>
+          `;
+        }
       }
     }
 
@@ -385,7 +434,7 @@ const ReportsPage = {
 
     if (items.length === 0) {
       if (bannerBox) bannerBox.style.display = 'none';
-      paramsContainer.innerHTML = `<p style="font-size:11px; color:#536E66; padding:8px;">Different checkup panels booked across visits. Parameter direct comparison available for matching tests.</p>`;
+      paramsContainer.innerHTML = `<p style="font-size:11px; color:#536E66; padding:8px;">Different diagnostic panels booked across visits. Full breakdown available in individual PDF reports.</p>`;
       return;
     }
 
@@ -405,7 +454,7 @@ const ReportsPage = {
         bannerBox.innerHTML = `
           <div class="banner-icon">🎉</div>
           <div class="banner-content">
-            <strong>Well done, ${Utils.escapeHtml(patientName)}! Your ${paramText}!</strong>
+            <strong>Well done, ${this.safeEscape(patientName)}! Your ${paramText}!</strong>
             <p>Your diagnostic parameters show positive control compared to your previous laboratory checkup.</p>
           </div>
         `;
@@ -449,7 +498,7 @@ const ReportsPage = {
     paramsContainer.innerHTML = items.map(p => `
       <div class="comp-param-card">
         <div class="param-title-row">
-          <strong>${Utils.escapeHtml(p.name)}</strong>
+          <strong>${this.safeEscape(p.name)}</strong>
           <span class="ref-val">Ref: ${p.range} ${p.unit}</span>
         </div>
         <div class="values-compare-flex">
@@ -510,7 +559,7 @@ const ReportsPage = {
         <li>• Deep fried snacks (Bajjis, samosas, mixtures)</li>
         <li>• High-glycemic fruits like mangoes, sapota, ripe bananas</li>
       `;
-      if (exerciseText) exerciseText.textContent = "30 to 45 minutes of daily brisk walking (morning or post-dinner) combined with light Surya Namaskar to boost cellular insulin absorption.";
+      if (exerciseText) exerciseText.textContent = "30 to 45 minutes of daily brisk walking combined with light Surya Namaskar to boost cellular insulin absorption.";
       if (docText) docText.textContent = "Diabetologist / Consultant Physician";
       if (docBadge) docBadge.textContent = "Diabetology";
     } else if (isLipidRisk) {
@@ -526,7 +575,7 @@ const ReportsPage = {
         <li>• Re-heated commercial cooking oils & butter cookies</li>
         <li>• Ultra-processed chips & packaged foods</li>
       `;
-      if (exerciseText) exerciseText.textContent = "Moderate aerobic cardio (cycling, jogging, or stair climbing) 5 days a week for 30 minutes to improve HDL (good cholesterol).";
+      if (exerciseText) exerciseText.textContent = "Moderate aerobic cardio (cycling, jogging, or stair climbing) 5 days a week for 30 minutes to improve HDL.";
       if (docText) docText.textContent = "Cardiologist / General Medicine Specialist";
       if (docBadge) docBadge.textContent = "Cardiology";
     } else if (isThyroidIssue) {
@@ -540,7 +589,7 @@ const ReportsPage = {
         <li>• Excess soy products & refined packaged sugars</li>
         <li>• Late night heavy gluten meals</li>
       `;
-      if (exerciseText) exerciseText.textContent = "Daily 30 minutes of low-impact walking and thyroid-stimulating yoga (Sarvangasana, Matsyasana under guidance).";
+      if (exerciseText) exerciseText.textContent = "Daily 30 minutes of low-impact walking and thyroid-stimulating yoga (Sarvangasana, Matsyasana).";
       if (docText) docText.textContent = "Endocrinologist / General Physician";
       if (docBadge) docBadge.textContent = "Endocrinology";
     } else {
@@ -568,7 +617,7 @@ const ReportsPage = {
       <div class="report-card animate-fade">
         <div class="report-card-top">
           <div>
-            <h5>${Utils.escapeHtml(r.title)}</h5>
+            <h5>${this.safeEscape(r.title)}</h5>
             <span>Date: ${r.date} • ID: ${r.bookingId}</span>
           </div>
           <span style="font-size: 10px; font-weight:800; color:#047857; background:#ECFDF5; padding:3px 7px; border-radius:6px;">NABL Certified</span>
@@ -577,7 +626,7 @@ const ReportsPage = {
           <button type="button" class="btn-view" onclick="ReportsPage.openModal('${r.id}')">
             👁️ View Parameters
           </button>
-          <button type="button" class="btn-pdf" onclick="ReportsPage.downloadPdf('${Utils.escapeHtml(r.title)}', '${r.bookingId}')">
+          <button type="button" class="btn-pdf" onclick="ReportsPage.downloadPdf('${this.safeEscape(r.title)}', '${r.bookingId}', '${this.safeEscape(r.reportUrl || '')}')">
             📥 Download PDF
           </button>
         </div>
@@ -600,11 +649,17 @@ const ReportsPage = {
 
     if (tbody) {
       if (params.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:14px; color:#536E66;">Lab analysis completed. Official PDF contains complete clinical breakdown.</td></tr>`;
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="4" style="text-align:center; padding:18px; color:#536E66; font-size:12px;">
+              Clinical laboratory analysis verified by ${this.safeEscape(report.doctor)}. Full signed diagnostic breakdown is available in the official PDF.
+            </td>
+          </tr>
+        `;
       } else {
         tbody.innerHTML = params.map(p => `
           <tr>
-            <td><strong>${Utils.escapeHtml(p.name)}</strong></td>
+            <td><strong>${this.safeEscape(p.name)}</strong></td>
             <td><strong>${p.value}</strong> <small>${p.unit || ''}</small></td>
             <td><small>${p.range || 'Standard'} ${p.unit || ''}</small></td>
             <td><span class="param-badge ${p.status || 'normal'}">${(p.status || 'NORMAL').toUpperCase()}</span></td>
@@ -615,13 +670,13 @@ const ReportsPage = {
 
     const pdfBtn = document.getElementById('modal-download-pdf-btn');
     if (pdfBtn) {
-      pdfBtn.onclick = () => this.downloadPdf(report.title, report.bookingId);
+      pdfBtn.onclick = () => this.downloadPdf(report.title, report.bookingId, report.reportUrl);
     }
 
     const waBtn = document.getElementById('modal-whatsapp-share-btn');
     if (waBtn) {
       waBtn.onclick = () => {
-        const text = `Hello Doctor, sharing my verified diagnostic report for *${report.title}* from Selfcare Diagnostics Chennai (Patient: ${patient.name}).`;
+        const text = `Hello Doctor, sharing my verified diagnostic report for *${report.title}* from Selfcare Diagnostics Chennai (Patient: ${patient.name}, Booking ID: ${report.bookingId}).`;
         window.location.href = `https://wa.me/917010174890?text=${encodeURIComponent(text)}`;
       };
     }
@@ -630,11 +685,18 @@ const ReportsPage = {
     if (modal) modal.style.display = 'flex';
   },
 
-  downloadPdf(title, bookingId) {
-    if (typeof Utils !== 'undefined') {
-      Utils.showToast(`Preparing certified NABL laboratory report ${bookingId}...`, 'success');
+  downloadPdf(title, bookingId, reportUrl = '') {
+    if (reportUrl && reportUrl.trim() !== '') {
+      if (typeof Utils !== 'undefined' && Utils.showToast) {
+        Utils.showToast(`Opening certified NABL lab report for ${bookingId}...`, 'success');
+      }
+      window.open(reportUrl, '_blank');
+      return;
     }
-    const cleanTitle = title.replace(/\s+/g, '_');
+
+    if (typeof Utils !== 'undefined' && Utils.showToast) {
+      Utils.showToast(`Requesting certified PDF report ${bookingId}...`, 'success');
+    }
     const msg = `Hello Selfcare Diagnostics, please share the official signed PDF report for Booking ID: *${bookingId}* (${title}).`;
     window.location.href = `https://wa.me/917010174890?text=${encodeURIComponent(msg)}`;
   },
@@ -651,4 +713,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 if (typeof window !== 'undefined') {
   window.ReportsPage = ReportsPage;
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = ReportsPage;
 }
